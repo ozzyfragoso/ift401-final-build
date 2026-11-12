@@ -2,9 +2,10 @@ import os
 from datetime import datetime
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_bcrypt import Bcrypt
 
 # Read the database URL and secret key from the .env file, which is not uploaded to GitHub
 load_dotenv()
@@ -16,9 +17,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 
 
@@ -117,3 +120,94 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        first_name = request.form['first_name'].strip()
+        last_name = request.form['last_name'].strip()
+        username = request.form['username'].strip()
+        email = request.form['email'].strip()
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if not all([first_name, last_name, username, email, password]):
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('register'))
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists.', 'danger')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists.', 'danger')
+            return redirect(url_for('register'))
+
+        hashed_password = bcrypt.generate_password_hash(
+            password
+        ).decode('utf-8')
+
+        new_user = User(
+            first_name=first_name,
+            last_name=last_name,
+            username=username,
+            email=email,
+            password=hashed_password,
+            cash_balance=0,
+            admin_access=False
+        )
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Registration failed. Please try again.', 'danger')
+            return redirect(url_for('register'))
+
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password']
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and bcrypt.check_password_hash(user.password, password):
+            login_user(user)
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard'))
+
+        flash('Invalid username or password.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/')
+@login_required
+def dashboard():
+    return f"""
+    <h2>Stock Trading System</h2>
+    <p>Welcome, {current_user.username}!</p>
+    <p>You have successfully logged in.</p>
+    <a href="/logout">Logout</a>
+    """
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
