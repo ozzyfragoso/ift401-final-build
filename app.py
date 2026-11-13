@@ -364,3 +364,134 @@ def buy_stock(symbol):
         flash('The purchase could not be completed. Nothing was charged. Please try again.', 'danger')
 
     return redirect(url_for('stocks'))
+
+
+@app.route('/stocks/<string:symbol>/sell', methods=['GET', 'POST'])
+@login_required
+def sell_panel(symbol):
+    stock = Stock.query.filter_by(symbol=symbol, status='active').first()
+
+    if stock is None:
+        flash('Stock not found.', 'danger')
+        return redirect(url_for('stocks'))
+
+    holding = Holding.query.filter_by(
+        user_id=current_user.user_id,
+        stock_id=stock.stock_id
+    ).first()
+
+    if holding is None or holding.quantity <= 0:
+        flash('You do not own shares of this stock.', 'danger')
+        return redirect(url_for('stocks'))
+
+    if not market_is_open():
+        flash('Market is closed. Selling is not available.', 'warning')
+        return redirect(url_for('stocks'))
+
+    if request.method == 'POST':
+        quantity = read_quantity(request.form.get('quantity', '').strip())
+
+        if quantity is None:
+            flash('Enter a valid positive whole number.', 'danger')
+            return redirect(url_for('sell_panel', symbol=symbol))
+
+        if quantity > holding.quantity:
+            flash('You cannot sell more shares than you own.', 'danger')
+            return redirect(url_for('sell_panel', symbol=symbol))
+
+        total = quantity * stock.current_price
+
+        return render_template(
+            'sell.html',
+            stock=stock,
+            holding=holding,
+            quantity=quantity,
+            total=total
+        )
+
+    return render_template(
+        'sell.html',
+        stock=stock,
+        holding=holding,
+        quantity=None,
+        total=None
+    )
+
+#Sell Stock
+
+@app.route('/stocks/<string:symbol>/sell/confirm', methods=['POST'])
+@login_required
+def sell_stock(symbol):
+    try:
+        user = db.session.get(
+            User,
+            current_user.user_id,
+            with_for_update=True
+        )
+
+        stock = Stock.query.filter_by(
+            symbol=symbol,
+            status='active'
+        ).with_for_update().first()
+
+        if stock is None:
+            db.session.rollback()
+            flash('Stock is unavailable.', 'danger')
+            return redirect(url_for('stocks'))
+
+        holding = Holding.query.filter_by(
+            user_id=user.user_id,
+            stock_id=stock.stock_id
+        ).with_for_update().first()
+
+        quantity = read_quantity(request.form.get('quantity', '').strip())
+
+        if not market_is_open():
+            db.session.rollback()
+            flash('Market is closed.', 'warning')
+            return redirect(url_for('stocks'))
+
+        if quantity is None:
+            db.session.rollback()
+            flash('Invalid quantity.', 'danger')
+            return redirect(url_for('sell_panel', symbol=symbol))
+
+        if holding is None or quantity > holding.quantity:
+            db.session.rollback()
+            flash('You do not own enough shares.', 'danger')
+            return redirect(url_for('stocks'))
+
+        price = stock.current_price
+        total = quantity * price
+
+        update_cash_balance(user, total)
+        update_stock_inventory(stock, quantity)
+
+        holding.quantity -= quantity
+
+        if holding.quantity == 0:
+            db.session.delete(holding)
+
+        record_stock_transaction(
+            user.user_id,
+            stock.stock_id,
+            'sell',
+            quantity,
+            price,
+            total
+        )
+
+        db.session.commit()
+
+        flash(
+            f'Sale complete: Sold {quantity} shares of '
+            f'{stock.symbol} for ${total:,.2f}.',
+            'success'
+        )
+
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Sell Stock transaction failed')
+        flash('Sale failed. Please try again.', 'danger')
+
+    return redirect(url_for('stocks'))
