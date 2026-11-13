@@ -17,9 +17,10 @@ The project follows the course Project Handbook. It runs locally first and is de
 
 | Feature | Status |
 |---|---|
-| Login and registration | Planned |
+| Login and registration | Complete |
 | Admin dashboard and market schedule | Planned |
-| Buy stock | In progress |
+| Buy stock | Complete |
+| Portfolio | In progress |
 | Sell stock | Planned |
 | Random stock price generator | Planned |
 | Transaction history | Planned |

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Stocks{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Available Stocks</h2>
+
+{% if stocks %}
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>Ticker</th>
+            <th>Company</th>
+            <th>Price</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stock in stocks %}
+        <tr>
+            <td>{{ stock.symbol }}</td>
+            <td>{{ stock.company_name }}</td>
+            <td>${{ "{:,.2f}".format(stock.current_price) }}</td>
+            {# BUY is shown on every row, even when the market is closed; the Buy panel checks the market #}
+            <td>
+                <a href="{{ url_for('buy_panel', symbol=stock.symbol) }}" class="btn btn-primary btn-sm">BUY</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No stocks are available right now.</p>
+{% endif %}
+{% endblock %}

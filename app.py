@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, time
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash
@@ -211,3 +211,156 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+
+
+# Buy Stock
+
+
+def market_is_open():
+    now = datetime.now()
+    schedule = MarketSchedule.query.filter_by(market_date=now.date()).first()
+
+    # An administrator's schedule for today always wins over the default hours
+    if schedule:
+        if schedule.market_status != 'open':
+            return False
+        if schedule.open_time is None or schedule.close_time is None:
+            return False
+        return schedule.open_time <= now.time() < schedule.close_time
+
+    # No schedule for today: the default is Monday to Friday, 9:00 AM to 5:00 PM
+    return now.weekday() < 5 and time(9, 0) <= now.time() < time(17, 0)
+
+
+def read_quantity(quantity_text):
+    # Shares are bought in whole numbers, at least 1; anything else (0, -5, 2.5, "ten") is rejected
+    if quantity_text.isdigit() and int(quantity_text) >= 1:
+        return int(quantity_text)
+    return None
+
+
+def validate_funds(user, total):
+    return user.cash_balance >= total
+
+
+def update_cash_balance(user, amount):
+    # Buy passes a negative amount (money out), Sell a positive one (money in)
+    user.cash_balance = user.cash_balance + amount
+
+
+def update_stock_inventory(stock, change):
+    # Buy passes a negative change (shares leave the inventory), Sell a positive one
+    stock.available_quantity = stock.available_quantity + change
+
+
+def update_holding(user_id, stock_id, quantity, price):
+    holding = Holding.query.filter_by(user_id=user_id, stock_id=stock_id).first()
+
+    if holding:
+        # Weighted average: what all the shares cost together, divided by how many there are now
+        total_cost = holding.quantity * holding.average_price + quantity * price
+        holding.quantity = holding.quantity + quantity
+        holding.average_price = round(total_cost / holding.quantity, 2)
+    else:
+        new_holding = Holding(user_id=user_id, stock_id=stock_id, quantity=quantity, average_price=price)
+        db.session.add(new_holding)
+
+
+def record_stock_transaction(user_id, stock_id, transaction_type, quantity, price, total):
+    # transaction_date is filled in automatically with the current date and time
+    transaction = StockTransaction(
+        user_id=user_id,
+        stock_id=stock_id,
+        transaction_type=transaction_type,
+        quantity=quantity,
+        price_per_share=price,
+        total_amount=total
+    )
+    db.session.add(transaction)
+
+
+def check_buy_order(stock, quantity):
+    # Returns the reason the order cannot go through, or None when it can
+    if quantity is None:
+        return 'Enter a whole number of shares, 1 or more.'
+    if quantity > stock.available_quantity:
+        return f'Only {stock.available_quantity} shares of {stock.symbol} are available.'
+    total = quantity * stock.current_price
+    if not validate_funds(current_user, total):
+        return f'Insufficient funds. This purchase costs ${total:,.2f} and your cash balance is ${current_user.cash_balance:,.2f}.'
+    return None
+
+
+# Screen 1: every active stock with its price and a BUY button
+@app.route('/stocks')
+@login_required
+def stocks():
+    active_stocks = Stock.query.filter_by(status='active').all()
+    return render_template('stocks.html', stocks=active_stocks)
+
+
+# Screen 2: the Buy panel. GET shows the quantity form; POST checks the order and asks for confirmation
+@app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
+@login_required
+def buy_panel(symbol):
+    stock = Stock.query.filter_by(symbol=symbol, status='active').first()
+    if not stock:
+        flash('That stock is not available.', 'danger')
+        return redirect(url_for('stocks'))
+
+    # The BUY buttons are always shown, so the market check happens here, after a stock is selected
+    if not market_is_open():
+        flash('Market is closed.', 'warning')
+        return redirect(url_for('stocks'))
+
+    if request.method == 'POST':
+        quantity = read_quantity(request.form['quantity'].strip())
+        problem = check_buy_order(stock, quantity)
+        if problem:
+            flash(problem, 'danger')
+            return redirect(url_for('buy_panel', symbol=symbol))
+
+        total = quantity * stock.current_price
+        return render_template('buy.html', stock=stock, quantity=quantity, total=total)
+
+    return render_template('buy.html', stock=stock, quantity=None, total=None)
+
+
+# Runs only after the customer selects Yes; a purchase cannot be cancelled once this commits
+@app.route('/stocks/<string:symbol>/buy/confirm', methods=['POST'])
+@login_required
+def buy_stock(symbol):
+    stock = Stock.query.filter_by(symbol=symbol, status='active').first()
+    if not stock:
+        flash('That stock is not available.', 'danger')
+        return redirect(url_for('stocks'))
+
+    # Check everything again: the market may have closed or the balance changed since the panel loaded
+    if not market_is_open():
+        flash('Market is closed.', 'warning')
+        return redirect(url_for('stocks'))
+
+    quantity = read_quantity(request.form['quantity'].strip())
+    problem = check_buy_order(stock, quantity)
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('buy_panel', symbol=symbol))
+
+    price = stock.current_price
+    total = quantity * price
+
+    # All four changes are saved together in one commit, or none of them are
+    try:
+        update_cash_balance(current_user, -total)
+        update_holding(current_user.user_id, stock.stock_id, quantity, price)
+        update_stock_inventory(stock, -quantity)
+        record_stock_transaction(current_user.user_id, stock.stock_id, 'buy', quantity, price, total)
+        db.session.commit()
+        shares = 'share' if quantity == 1 else 'shares'
+        flash(f'Purchase complete: {quantity} {shares} of {stock.symbol} for ${total:,.2f}.', 'success')
+    except Exception:
+        db.session.rollback()
+        flash('The purchase could not be completed. Nothing was charged. Please try again.', 'danger')
+
+    return redirect(url_for('stocks'))
