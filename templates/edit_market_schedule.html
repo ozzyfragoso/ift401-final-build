@@ -1,0 +1,77 @@
+
+{% extends "base.html" %}
+
+{% block title %}Edit Market Schedule{% endblock %}
+
+{% block content %}
+
+<h2>Edit Market Schedule</h2>
+
+<p><strong>Market Date:</strong> {{ schedule.market_date }}</p>
+
+<form method="POST" class="mt-4">
+
+    <div class="mb-3">
+        <label for="open_time" class="form-label">
+            Opening Time
+        </label>
+        <input type="time" class="form-control"
+               id="open_time" name="open_time"
+               value="{{ schedule.open_time.strftime('%H:%M') if schedule.open_time else '' }}">
+    </div>
+
+    <div class="mb-3">
+        <label for="close_time" class="form-label">
+            Closing Time
+        </label>
+        <input type="time" class="form-control"
+               id="close_time" name="close_time"
+               value="{{ schedule.close_time.strftime('%H:%M') if schedule.close_time else '' }}">
+    </div>
+
+    <div class="mb-3">
+        <label for="market_status" class="form-label">
+            Market Status
+        </label>
+        <select class="form-select"
+                id="market_status" name="market_status" required>
+
+            <option value="open"
+                {% if schedule.market_status == 'open' %}selected{% endif %}>
+                Open
+            </option>
+
+            <option value="closed"
+                {% if schedule.market_status == 'closed' %}selected{% endif %}>
+                Closed
+            </option>
+
+            <option value="holiday"
+                {% if schedule.market_status == 'holiday' %}selected{% endif %}>
+                Holiday
+            </option>
+
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="notes" class="form-label">
+            Notes (Optional)
+        </label>
+        <textarea class="form-control"
+                  id="notes" name="notes"
+                  rows="3">{{ schedule.notes or '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Save Changes
+    </button>
+
+    <a href="{{ url_for('market_schedule') }}"
+       class="btn btn-secondary">
+        Cancel
+    </a>
+
+</form>
+
+{% endblock %}

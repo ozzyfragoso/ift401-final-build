@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, time
 
 from dotenv import load_dotenv
@@ -185,9 +186,16 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and bcrypt.check_password_hash(user.password, password):
+
             login_user(user)
-            flash('Login successful!', 'success')
+        flash('Login successful!', 'success')
+
+        if user.admin_access:
+            return redirect(url_for('admin_dashboard'))
+        else:
             return redirect(url_for('dashboard'))
+
+            
 
         flash('Invalid username or password.', 'danger')
 
@@ -211,6 +219,234 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+
+# Administrator Dashboard
+# Administrator Dashboard
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    return render_template('admin_dashboard.html')
+
+# Create Stock - Administrator Only
+@app.route('/admin/stocks/create', methods=['GET', 'POST'])
+@login_required
+def create_stock():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        symbol = request.form.get('symbol', '').strip().upper()
+        company_name = request.form.get('company_name', '').strip()
+        status = request.form.get('status', '')
+
+        try:
+            price = Decimal(request.form.get('current_price', ''))
+            quantity = int(request.form.get('available_quantity', ''))
+        except (InvalidOperation, ValueError):
+            flash('Enter a valid price and quantity.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        if not symbol or not company_name:
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        if not price.is_finite() or price <= 0 or price > Decimal('9999999999999.99'):
+            flash('Enter a valid stock price.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        if quantity < 0 or quantity > 2147483647:
+            flash('Enter a valid stock quantity.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        if status not in ('active', 'inactive'):
+            flash('Invalid stock status.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        if Stock.query.filter_by(symbol=symbol).first():
+            flash('Stock symbol already exists.', 'danger')
+            return redirect(url_for('create_stock'))
+
+        new_stock = Stock(
+            symbol=symbol,
+            company_name=company_name,
+            current_price=price,
+            available_quantity=quantity,
+            status=status
+        )
+
+        try:
+            db.session.add(new_stock)
+            db.session.commit()
+            flash('Stock created successfully!', 'success')
+            return redirect(url_for('admin_dashboard'))
+        except Exception:
+            db.session.rollback()
+            flash('Could not create stock.', 'danger')
+
+    return render_template('create_stock.html')
+
+# Stock Inventory - Administrator Only
+@app.route('/admin/stocks')
+@login_required
+def stock_inventory():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    stocks = Stock.query.order_by(Stock.symbol).all()
+
+    return render_template('stock_inventory.html', stocks=stocks)
+
+# Market Schedule - Administrator Only
+@app.route('/admin/market-schedule', methods=['GET', 'POST'])
+@login_required
+def market_schedule():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            market_date = datetime.strptime(
+                request.form.get('market_date', ''), '%Y-%m-%d'
+            ).date()
+
+            status = request.form.get('market_status', '')
+
+            if status not in ('open', 'closed', 'holiday'):
+                flash('Invalid market status.', 'danger')
+                return redirect(url_for('market_schedule'))
+
+            open_value = request.form.get('open_time', '')
+            close_value = request.form.get('close_time', '')
+
+            open_time = (
+                datetime.strptime(open_value, '%H:%M').time()
+                if open_value else None
+            )
+            close_time = (
+                datetime.strptime(close_value, '%H:%M').time()
+                if close_value else None
+            )
+
+            if status == 'open':
+                if not open_time or not close_time or open_time >= close_time:
+                    flash('Enter valid opening and closing times.', 'danger')
+                    return redirect(url_for('market_schedule'))
+            else:
+                open_time = None
+                close_time = None
+
+        except ValueError:
+            flash('Enter a valid date and time.', 'danger')
+            return redirect(url_for('market_schedule'))
+
+        if MarketSchedule.query.filter_by(market_date=market_date).first():
+            flash('A schedule already exists for this date.', 'danger')
+            return redirect(url_for('market_schedule'))
+
+        schedule = MarketSchedule(
+            admin_id=current_user.user_id,
+            market_date=market_date,
+            open_time=open_time,
+            close_time=close_time,
+            market_status=status,
+            notes=request.form.get('notes', '').strip()
+        )
+
+        try:
+            db.session.add(schedule)
+            db.session.commit()
+            flash('Market schedule saved successfully!', 'success')
+            return redirect(url_for('market_schedule'))
+        except Exception:
+            db.session.rollback()
+            flash('Could not save market schedule.', 'danger')
+
+
+
+    schedules = MarketSchedule.query.order_by(
+        MarketSchedule.market_date
+    ).all()
+
+    return render_template('market_schedule.html', schedules=schedules)
+
+# Edit Market Schedule - Administrator Only
+@app.route('/admin/market-schedule/edit/<int:schedule_id>',
+           methods=['GET', 'POST'])
+@login_required
+def edit_market_schedule(schedule_id):
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    schedule = db.get_or_404(MarketSchedule, schedule_id)
+
+    if request.method == 'POST':
+        try:
+            status = request.form.get('market_status', '')
+            if status not in ('open', 'closed', 'holiday'):
+                raise ValueError('Invalid status')
+
+            open_value = request.form.get('open_time', '')
+            close_value = request.form.get('close_time', '')
+
+            open_time = (
+                datetime.strptime(open_value, '%H:%M').time()
+                if open_value else None
+            )
+            close_time = (
+                datetime.strptime(close_value, '%H:%M').time()
+                if close_value else None
+            )
+
+            if status == 'open':
+                if not open_time or not close_time or open_time >= close_time:
+                    raise ValueError('Invalid trading hours')
+            else:
+                open_time = None
+                close_time = None
+
+        except ValueError:
+            flash('Please enter valid market hours and status.', 'danger')
+            return redirect(url_for('edit_market_schedule',
+                                    schedule_id=schedule_id))
+
+        schedule.open_time = open_time
+        schedule.close_time = close_time
+        schedule.market_status = status
+        schedule.notes = request.form.get('notes', '').strip()
+
+        try:
+            db.session.commit()
+            flash('Market schedule updated successfully!', 'success')
+            return redirect(url_for('market_schedule'))
+        except Exception:
+            db.session.rollback()
+            flash('Could not update market schedule.', 'danger')
+
+    return render_template('edit_market_schedule.html',
+                           schedule=schedule)
+
+
+
+
+
+
+
+
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    return render_template('admin_dashboard.html')
+
 
 
 

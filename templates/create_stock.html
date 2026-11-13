@@ -1,0 +1,59 @@
+
+{% extends "base.html" %}
+
+{% block title %}Create Stock{% endblock %}
+
+{% block content %}
+
+<h2>Create Stock</h2>
+
+<form method="POST">
+
+    <div class="mb-3">
+        <label for="symbol" class="form-label">Stock Symbol</label>
+        <input type="text" class="form-control"
+               id="symbol" name="symbol" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="company_name" class="form-label">Company Name</label>
+        <input type="text" class="form-control"
+               id="company_name" name="company_name" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="current_price" class="form-label">Stock Price ($)</label>
+        <input type="number" class="form-control"
+               id="current_price" name="current_price"
+               min="0.01" step="0.01" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="available_quantity" class="form-label">
+            Available Quantity
+        </label>
+        <input type="number" class="form-control"
+               id="available_quantity" name="available_quantity"
+               min="0" step="1" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="status" class="form-label">Status</label>
+        <select class="form-select" id="status" name="status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Create Stock
+    </button>
+
+    <a href="{{ url_for('admin_dashboard') }}"
+       class="btn btn-secondary">
+        Back to Dashboard
+    </a>
+
+</form>
+
+{% endblock %}
