@@ -106,7 +106,27 @@ class TestStockGenerator(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_update.assert_not_called()
+    @patch('app.db.session.rollback')
+    @patch('app.db.session.commit', side_effect=Exception('Database error'))
+    @patch('app.generate_stock_price', return_value=Decimal('105.00'))
+    @patch('app.Stock.query')
+    def test_database_failure_rolls_back(
+        self, mock_query, mock_generate, mock_commit, mock_rollback
+    ):
+        from unittest.mock import MagicMock
+        from app import update_all_stock_prices
 
+        stock = MagicMock()
+        stock.current_price = Decimal('100.00')
+
+        mock_query.filter_by.return_value.all.return_value = [stock]
+
+        with self.assertRaises(Exception):
+            update_all_stock_prices()
+
+        mock_query.filter_by.assert_called_once_with(status='active')
+        mock_commit.assert_called_once()
+        mock_rollback.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
