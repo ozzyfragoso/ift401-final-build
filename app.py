@@ -212,6 +212,21 @@ def generate_stock_price(current_price):
         Decimal('0.01'),
         new_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     )
+def update_all_stock_prices():
+    active_stocks = Stock.query.filter_by(status='active').all()
+
+    try:
+        for stock in active_stocks:
+            stock.current_price = generate_stock_price(
+                stock.current_price
+            )
+
+        db.session.commit()
+        return len(active_stocks)
+
+    except Exception:
+        db.session.rollback()
+        raise
 def market_is_open():
     now = datetime.now()
     schedule = MarketSchedule.query.filter_by(
