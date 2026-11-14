@@ -600,3 +600,8 @@ def buy_stock(symbol):
         flash('The purchase could not be completed. Nothing was charged. Please try again.', 'danger')
 
     return redirect(url_for('stocks'))
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
