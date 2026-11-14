@@ -1,0 +1,49 @@
+
+{% extends "base.html" %}
+
+{% block title %}Sell {{ stock.symbol }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">{{ stock.symbol }} &mdash; {{ stock.company_name }}</h4>
+                <p class="mb-1">Current market price: ${{ "{:,.2f}".format(stock.current_price) }} / share</p>
+                <p class="mb-1">Shares owned: {{ holding.quantity }}</p>
+                <p>Cash available: ${{ "{:,.2f}".format(current_user.cash_balance) }}</p>
+                <hr>
+
+                {% if quantity is none %}
+                <form method="POST" action="{{ url_for('sell_panel', symbol=stock.symbol) }}">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity to sell</label>
+                        <input type="number" class="form-control" id="quantity"
+                               name="quantity" min="1" max="{{ holding.quantity }}"
+                               step="1" required>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">Review order</button>
+                </form>
+
+                {% else %}
+                <p class="mb-1">Quantity to sell: {{ quantity }}</p>
+                <div class="alert alert-secondary fw-bold">
+                    Total proceeds: ${{ "{:,.2f}".format(total) }}
+                </div>
+
+                <form method="POST" action="{{ url_for('sell_stock', symbol=stock.symbol) }}">
+                    <input type="hidden" name="quantity" value="{{ quantity }}">
+                    <p class="fw-bold">Confirm sale of stocks?</p>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">Yes</button>
+                        <a href="{{ url_for('stocks') }}" class="btn btn-secondary">No</a>
+                        <a href="{{ url_for('sell_panel', symbol=stock.symbol) }}"
+                           class="btn btn-outline-danger ms-auto">Edit order</a>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
