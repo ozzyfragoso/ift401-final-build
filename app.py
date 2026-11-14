@@ -419,79 +419,20 @@ def sell_panel(symbol):
 
 #Sell Stock
 
-@app.route('/stocks/<string:symbol>/sell/confirm', methods=['POST'])
+@app.route('/stocks')
 @login_required
-def sell_stock(symbol):
-    try:
-        user = db.session.get(
-            User,
-            current_user.user_id,
-            with_for_update=True
-        )
+def stocks():
+    active_stocks = Stock.query.filter_by(status='active').all()
 
-        stock = Stock.query.filter_by(
-            symbol=symbol,
-            status='active'
-        ).with_for_update().first()
+    holdings = Holding.query.filter(
+        Holding.user_id == current_user.user_id,
+        Holding.quantity > 0
+    ).all()
 
-        if stock is None:
-            db.session.rollback()
-            flash('Stock is unavailable.', 'danger')
-            return redirect(url_for('stocks'))
+    owned_stock_ids = {holding.stock_id for holding in holdings}
 
-        holding = Holding.query.filter_by(
-            user_id=user.user_id,
-            stock_id=stock.stock_id
-        ).with_for_update().first()
-
-        quantity = read_quantity(request.form.get('quantity', '').strip())
-
-        if not market_is_open():
-            db.session.rollback()
-            flash('Market is closed.', 'warning')
-            return redirect(url_for('stocks'))
-
-        if quantity is None:
-            db.session.rollback()
-            flash('Invalid quantity.', 'danger')
-            return redirect(url_for('sell_panel', symbol=symbol))
-
-        if holding is None or quantity > holding.quantity:
-            db.session.rollback()
-            flash('You do not own enough shares.', 'danger')
-            return redirect(url_for('stocks'))
-
-        price = stock.current_price
-        total = quantity * price
-
-        update_cash_balance(user, total)
-        update_stock_inventory(stock, quantity)
-
-        holding.quantity -= quantity
-
-        if holding.quantity == 0:
-            db.session.delete(holding)
-
-        record_stock_transaction(
-            user.user_id,
-            stock.stock_id,
-            'sell',
-            quantity,
-            price,
-            total
-        )
-
-        db.session.commit()
-
-        flash(
-            f'Sale complete: Sold {quantity} shares of '
-            f'{stock.symbol} for ${total:,.2f}.',
-            'success'
-        )
-
-    except Exception:
-        db.session.rollback()
-        app.logger.exception('Sell Stock transaction failed')
-        flash('Sale failed. Please try again.', 'danger')
-
-    return redirect(url_for('stocks'))
+    return render_template(
+        'stocks.html',
+        stocks=active_stocks,
+        owned_stock_ids=owned_stock_ids
+    )

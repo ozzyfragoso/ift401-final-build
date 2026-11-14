@@ -24,6 +24,12 @@
             {# BUY is shown on every row, even when the market is closed; the Buy panel checks the market #}
             <td>
                 <a href="{{ url_for('buy_panel', symbol=stock.symbol) }}" class="btn btn-primary btn-sm">BUY</a>
+                {% if stock.stock_id in owned_stock_ids %}
+<a href="{{ url_for('sell_panel', symbol=stock.symbol) }}"
+   class="btn btn-danger btn-sm">
+    SELL
+</a>
+{% endif %}
             </td>
         </tr>
         {% endfor %}
