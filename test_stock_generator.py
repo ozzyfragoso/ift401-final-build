@@ -134,5 +134,26 @@ class TestStockGenerator(unittest.TestCase):
         mock_commit.assert_called_once()
         mock_rollback.assert_called_once()
 
+    @patch('app.db.session.commit')
+    @patch('app.generate_stock_price', return_value=Decimal('105.00'))
+    @patch('app.Stock.query')
+    def test_inactive_stocks_are_excluded(
+        self, mock_query, mock_generate, mock_commit
+    ):
+        from unittest.mock import MagicMock
+        from app import update_all_stock_prices
+
+        active_stock = MagicMock()
+        active_stock.current_price = Decimal('100.00')
+
+        mock_query.filter_by.return_value.all.return_value = [active_stock]
+
+        count = update_all_stock_prices()
+
+        self.assertEqual(count, 1)
+        mock_query.filter_by.assert_called_once_with(status='active')
+        mock_generate.assert_called_once_with(Decimal('100.00'))
+        mock_commit.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()
