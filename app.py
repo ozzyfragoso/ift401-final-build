@@ -333,27 +333,32 @@ def check_buy_order(stock, quantity):
     return None
 
 
+
 @app.route('/stocks')
 @login_required
 def stocks():
-    active_stocks = Stock.query.filter_by(
-        status='active'
-    ).all()
+    try:
+        if market_is_open():
+            update_all_stock_prices()
+    except Exception:
+        app.logger.exception('Stock price generation failed')
+        flash('Stock prices could not be updated.', 'warning')
+
+    active_stocks = Stock.query.filter_by(status='active').all()
 
     holdings = Holding.query.filter(
         Holding.user_id == current_user.user_id,
         Holding.quantity > 0
     ).all()
 
-    owned_stock_ids = {
-        holding.stock_id for holding in holdings
-    }
+    owned_stock_ids = {holding.stock_id for holding in holdings}
 
     return render_template(
         'stocks.html',
         stocks=active_stocks,
         owned_stock_ids=owned_stock_ids
     )
+
 
 
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
