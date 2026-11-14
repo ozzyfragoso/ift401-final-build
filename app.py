@@ -1,5 +1,7 @@
 
 import os
+import random
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, time
 
 from dotenv import load_dotenv
@@ -201,7 +203,15 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
+def generate_stock_price(current_price):
+    current_price = Decimal(str(current_price))
+    change_percent = Decimal(str(random.uniform(-0.05, 0.05)))
+    new_price = current_price * (Decimal('1') + change_percent)
 
+    return max(
+        Decimal('0.01'),
+        new_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    )
 def market_is_open():
     now = datetime.now()
     schedule = MarketSchedule.query.filter_by(
