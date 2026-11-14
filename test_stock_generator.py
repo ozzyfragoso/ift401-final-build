@@ -51,6 +51,62 @@ class TestStockGenerator(unittest.TestCase):
         mock_generate.assert_called_once_with(Decimal('100.00'))
         mock_commit.assert_called_once()
 
+    @patch('app.update_all_stock_prices')
+    @patch('app.market_is_open', return_value=True)
+    def test_stocks_refresh_when_market_open(self, mock_market, mock_update):
+        from app import app, User
+
+        with app.test_client() as client:
+            with client.session_transaction() as session:
+                session['_user_id'] = '1'
+                session['_fresh'] = True
+
+            with patch('app.db.session.get') as mock_get:
+                user = User(
+                    user_id=1,
+                    username='testuser',
+                    first_name='Test',
+                    last_name='User',
+                    email='test@example.com',
+                    cash_balance=1000,
+                    admin_access=False
+                )
+                mock_get.return_value = user
+
+                with patch('app.render_template', return_value='Stocks page'):
+                    response = client.get('/stocks')
+
+        self.assertEqual(response.status_code, 200)
+        mock_update.assert_called_once()
+
+    @patch('app.update_all_stock_prices')
+    @patch('app.market_is_open', return_value=False)
+    def test_stocks_refresh_when_market_closed(self, mock_market, mock_update):
+        from app import app, User
+
+        with app.test_client() as client:
+            with client.session_transaction() as session:
+                session['_user_id'] = '1'
+                session['_fresh'] = True
+
+            with patch('app.db.session.get') as mock_get:
+                user = User(
+                    user_id=1,
+                    username='testuser',
+                    first_name='Test',
+                    last_name='User',
+                    email='test@example.com',
+                    cash_balance=1000,
+                    admin_access=False
+                )
+                mock_get.return_value = user
+
+                with patch('app.render_template', return_value='Stocks page'):
+                    response = client.get('/stocks')
+
+        self.assertEqual(response.status_code, 200)
+        mock_update.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
