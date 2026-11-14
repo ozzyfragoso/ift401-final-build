@@ -1,5 +1,7 @@
 
 import os
+import random
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, time
 
 from dotenv import load_dotenv
@@ -201,7 +203,30 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
+def generate_stock_price(current_price):
+    current_price = Decimal(str(current_price))
+    change_percent = Decimal(str(random.uniform(-0.05, 0.05)))
+    new_price = current_price * (Decimal('1') + change_percent)
 
+    return max(
+        Decimal('0.01'),
+        new_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    )
+def update_all_stock_prices():
+    active_stocks = Stock.query.filter_by(status='active').all()
+
+    try:
+        for stock in active_stocks:
+            stock.current_price = generate_stock_price(
+                stock.current_price
+            )
+
+        db.session.commit()
+        return len(active_stocks)
+
+    except Exception:
+        db.session.rollback()
+        raise
 def market_is_open():
     now = datetime.now()
     schedule = MarketSchedule.query.filter_by(
@@ -308,27 +333,32 @@ def check_buy_order(stock, quantity):
     return None
 
 
+
 @app.route('/stocks')
 @login_required
 def stocks():
-    active_stocks = Stock.query.filter_by(
-        status='active'
-    ).all()
+    try:
+        if market_is_open():
+            update_all_stock_prices()
+    except Exception:
+        app.logger.exception('Stock price generation failed')
+        flash('Stock prices could not be updated.', 'warning')
+
+    active_stocks = Stock.query.filter_by(status='active').all()
 
     holdings = Holding.query.filter(
         Holding.user_id == current_user.user_id,
         Holding.quantity > 0
     ).all()
 
-    owned_stock_ids = {
-        holding.stock_id for holding in holdings
-    }
+    owned_stock_ids = {holding.stock_id for holding in holdings}
 
     return render_template(
         'stocks.html',
         stocks=active_stocks,
         owned_stock_ids=owned_stock_ids
     )
+
 
 
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
