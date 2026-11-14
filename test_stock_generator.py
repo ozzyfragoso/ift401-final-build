@@ -28,6 +28,29 @@ class TestStockGenerator(unittest.TestCase):
         result = generate_stock_price(Decimal('100.00'))
         self.assertEqual(result, Decimal('101.23'))
 
+    @patch('app.db.session.commit')
+    @patch('app.generate_stock_price')
+    @patch('app.Stock.query')
+    def test_update_all_active_stocks(
+        self, mock_query, mock_generate, mock_commit
+    ):
+        from unittest.mock import MagicMock
+        from app import update_all_stock_prices
+
+        stock = MagicMock()
+        stock.current_price = Decimal('100.00')
+
+        mock_query.filter_by.return_value.all.return_value = [stock]
+        mock_generate.return_value = Decimal('102.00')
+
+        count = update_all_stock_prices()
+
+        self.assertEqual(count, 1)
+        self.assertEqual(stock.current_price, Decimal('102.00'))
+        mock_query.filter_by.assert_called_once_with(status='active')
+        mock_generate.assert_called_once_with(Decimal('100.00'))
+        mock_commit.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()
