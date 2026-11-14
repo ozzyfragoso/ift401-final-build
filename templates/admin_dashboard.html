@@ -1,0 +1,32 @@
+
+{% extends "base.html" %}
+
+{% block title %}Administrator Dashboard{% endblock %}
+
+{% block content %}
+
+<h2>Administrator Dashboard</h2>
+
+<div class="row mt-4">
+
+    <div class="col-md-4 mb-3">
+        <a href="{{ url_for('create_stock') }}" class="btn btn-primary w-100">
+    Create Stock
+</a>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <a href="{{ url_for('market_schedule') }}" class="btn btn-primary w-100">
+    Market Schedule
+</a>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <a href="{{ url_for('stock_inventory') }}" class="btn btn-primary w-100">
+    Stock Inventory
+</a>
+    </div>
+
+</div>
+
+{% endblock %}

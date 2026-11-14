@@ -1,0 +1,47 @@
+
+{% extends "base.html" %}
+
+{% block title %}Stock Inventory{% endblock %}
+
+{% block content %}
+
+<h2>Stock Inventory</h2>
+
+<table class="table table-bordered table-striped mt-4">
+    <thead>
+        <tr>
+            <th>Stock ID</th>
+            <th>Symbol</th>
+            <th>Company Name</th>
+            <th>Price ($)</th>
+            <th>Available Quantity</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for stock in stocks %}
+        <tr>
+            <td>{{ stock.stock_id }}</td>
+            <td>{{ stock.symbol }}</td>
+            <td>{{ stock.company_name }}</td>
+            <td>{{ stock.current_price }}</td>
+            <td>{{ stock.available_quantity }}</td>
+            <td>{{ stock.status }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center">
+                No stocks available.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('admin_dashboard') }}"
+   class="btn btn-secondary">
+    Back to Dashboard
+</a>
+
+{% endblock %}
