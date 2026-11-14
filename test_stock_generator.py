@@ -3,11 +3,17 @@ import unittest
 from decimal import Decimal
 from unittest.mock import patch
 
-from app import generate_stock_price
+from app import app, generate_stock_price
 
 
 class TestStockGenerator(unittest.TestCase):
 
+    def setUp(self):
+        self.app_context = app.app_context()
+        self.app_context.push()
+
+    def tearDown(self):
+        self.app_context.pop()
     @patch('app.random.uniform', return_value=0.05)
     def test_price_increase(self, mock_random):
         result = generate_stock_price(Decimal('100.00'))
