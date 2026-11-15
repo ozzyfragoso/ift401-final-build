@@ -626,6 +626,52 @@ def portfolio():
     )
 
 
+def get_transaction_history(user_id):
+    # Every stock trade the customer has made
+    transactions = StockTransaction.query.filter_by(user_id=user_id).all()
+
+    # Newest first; trades in the same second stay in the order they were made
+    transactions = sorted(
+        transactions,
+        key=lambda t: (t.transaction_date, t.stock_transaction_id),
+        reverse=True
+    )
+
+    # Each stock is looked up once, even if it was traded many times
+    symbols = {}
+    history = []
+
+    for transaction in transactions:
+        if transaction.stock_id not in symbols:
+            stock = Stock.query.filter_by(
+                stock_id=transaction.stock_id
+            ).first()
+            symbols[transaction.stock_id] = stock.symbol
+
+        # Date and time as in the mockup, e.g. 2026-11-15 1:26 PM
+        moment = transaction.transaction_date
+        hour = moment.hour % 12 or 12
+
+        history.append({
+            'type': transaction.transaction_type.capitalize(),
+            'symbol': symbols[transaction.stock_id],
+            'quantity': transaction.quantity,
+            'price_per_share': transaction.price_per_share,
+            'total_amount': transaction.total_amount,
+            'date_time': f"{moment:%Y-%m-%d} {hour}:{moment:%M %p}"
+        })
+
+    return history
+
+
+@app.route('/history')
+@login_required
+def transaction_history():
+    history = get_transaction_history(current_user.user_id)
+
+    return render_template('history.html', history=history)
+
+
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):

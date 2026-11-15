@@ -11,7 +11,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <span class="navbar-brand">Stock Trading System</span>
-            {# Customer navigation; Cash Account and History are added as those pages are built #}
+            {# Customer navigation; Cash Account (between Portfolio and History) is added when that page is built #}
             {# The current page is underlined, as in the mockups: Buy belongs to Stocks, Sell to Portfolio #}
             {% if current_user.is_authenticated and not current_user.admin_access %}
             <ul class="navbar-nav">
@@ -22,6 +22,10 @@
                 <li class="nav-item">
                     <a class="nav-link{% if request.endpoint in ['portfolio', 'sell_panel'] %} active text-decoration-underline{% endif %}"
                        href="{{ url_for('portfolio') }}">Portfolio</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.endpoint == 'transaction_history' %} active text-decoration-underline{% endif %}"
+                       href="{{ url_for('transaction_history') }}">History</a>
                 </li>
             </ul>
             
