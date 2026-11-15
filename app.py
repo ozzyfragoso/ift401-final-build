@@ -573,6 +573,59 @@ def stocks():
     )
 
 
+def get_portfolio(user_id):
+    # Every stock the customer still owns, with its current price
+    holdings = Holding.query.filter_by(user_id=user_id).all()
+
+    portfolio = []
+
+    for holding in holdings:
+        # Sell deletes a holding at zero shares; this skips any left behind
+        if holding.quantity <= 0:
+            continue
+
+        # Inactive stocks stay listed, because the customer still owns them
+        stock = Stock.query.filter_by(
+            stock_id=holding.stock_id
+        ).first()
+
+        portfolio.append({
+            'symbol': stock.symbol,
+            'company_name': stock.company_name,
+            'quantity': holding.quantity,
+            'current_price': stock.current_price
+        })
+
+    # Alphabetical by ticker, as in the Selling stocks mockup
+    return sorted(portfolio, key=lambda row: row['symbol'])
+
+
+def calculate_portfolio_summary(portfolio):
+    # Market value of everything the customer owns, at current prices
+    holdings_value = Decimal('0.00')
+
+    for row in portfolio:
+        holdings_value = (
+            holdings_value + row['quantity'] * row['current_price']
+        )
+
+    return holdings_value
+
+
+@app.route('/portfolio')
+@login_required
+def portfolio():
+    customer_portfolio = get_portfolio(current_user.user_id)
+    holdings_value = calculate_portfolio_summary(customer_portfolio)
+
+    return render_template(
+        'portfolio.html',
+        portfolio=customer_portfolio,
+        cash_balance=current_user.cash_balance,
+        holdings_value=holdings_value
+    )
+
+
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):
