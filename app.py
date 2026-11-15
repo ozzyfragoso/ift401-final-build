@@ -600,6 +600,18 @@ def get_portfolio(user_id):
     return sorted(portfolio, key=lambda row: row['symbol'])
 
 
+def calculate_portfolio_summary(portfolio):
+    # Market value of everything the customer owns, at current prices
+    holdings_value = Decimal('0.00')
+
+    for row in portfolio:
+        holdings_value = (
+            holdings_value + row['quantity'] * row['current_price']
+        )
+
+    return holdings_value
+
+
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):
