@@ -664,6 +664,14 @@ def get_transaction_history(user_id):
     return history
 
 
+@app.route('/history')
+@login_required
+def transaction_history():
+    history = get_transaction_history(current_user.user_id)
+
+    return render_template('history.html', history=history)
+
+
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):

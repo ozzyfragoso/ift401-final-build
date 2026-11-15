@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Transaction History</h2>
+
+{% if history %}
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Stock</th>
+            <th>Quantity</th>
+            <th>Price per Share</th>
+            <th>Total</th>
+            <th>Date and Time</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in history %}
+        <tr>
+            <td>{{ row.type }}</td>
+            <td>{{ row.symbol }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>${{ "{:,.2f}".format(row.price_per_share) }}</td>
+            <td>${{ "{:,.2f}".format(row.total_amount) }}</td>
+            <td>{{ row.date_time }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>You haven't made any trades yet. <a href="{{ url_for('stocks') }}">Go to Stocks</a></p>
+{% endif %}
+{% endblock %}
