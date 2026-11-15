@@ -23,7 +23,7 @@ The project follows the course Project Handbook. It runs locally first and is de
 | Portfolio | Complete |
 | Sell stock | Complete |
 | Random stock price generator | In progress |
-| Transaction history | Planned |
+| Transaction history | Complete |
 | Deposit and withdraw cash | Planned |
 | Profit/loss tracking (extra) | Planned |
 | Live stock price chart (extra) | Planned |
