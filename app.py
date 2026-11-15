@@ -731,6 +731,13 @@ def buy_stock(symbol):
 
 @app.route('/stocks/<string:symbol>/sell', methods=['GET', 'POST'])
 @login_required
+
+def price_unchanged(reviewed_price_text, current_price):
+    try:
+        return Decimal(reviewed_price_text) == current_price
+    except (InvalidOperation, TypeError):
+        return False
+
 def sell_panel(symbol):
     stock = Stock.query.filter_by(
         symbol=symbol,
@@ -794,17 +801,18 @@ def sell_panel(symbol):
 
 @app.route('/stocks/<string:symbol>/sell/confirm', methods=['POST'])
 @login_required
+
 def sell_stock(symbol):
     try:
         user = db.session.get(
             User,
             current_user.user_id,
-            with_for_update=True
+            with_for_update=True,
+            populate_existing=True
         )
 
         stock = Stock.query.filter_by(
-            symbol=symbol,
-            status='active'
+            symbol=symbol
         ).with_for_update().first()
 
         if stock is None:
@@ -836,8 +844,19 @@ def sell_stock(symbol):
             flash('You do not own enough shares.', 'danger')
             return redirect(url_for('stocks'))
 
+        
         price = stock.current_price
+
+        if not price_unchanged(request.form.get('price', ''), price):
+            db.session.rollback()
+            flash(
+                f'The price of {stock.symbol} changed to ${price:,.2f}. Review your order again.',
+                'warning'
+            )
+            return redirect(url_for('sell_panel', symbol=symbol))
+
         total = quantity * price
+
 
         update_cash_balance(user, total)
         update_stock_inventory(stock, quantity)
@@ -858,11 +877,14 @@ def sell_stock(symbol):
 
         db.session.commit()
 
+        shares = 'share' if quantity == 1 else 'shares'
+
         flash(
-            f'Sale complete: Sold {quantity} shares of '
+            f'Sale complete: Sold {quantity} {shares} of '
             f'{stock.symbol} for ${total:,.2f}.',
             'success'
         )
+
 
     except Exception:
         db.session.rollback()
