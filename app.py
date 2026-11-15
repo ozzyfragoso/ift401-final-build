@@ -614,8 +614,7 @@ def stocks():
         owned_stock_ids=owned_stock_ids
     )
 
-<<<<<<< HEAD
-=======
+
 
 def get_portfolio(user_id):
     # Every stock the customer still owns, with its current price
@@ -670,7 +669,6 @@ def portfolio():
     )
 
 
->>>>>>> origin/main
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):
