@@ -18,7 +18,18 @@
                     <a class="nav-link" href="{{ url_for('stocks') }}">Stocks</a>
                 </li>
             </ul>
+            
+            {% elif current_user.is_authenticated %}
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="{{ url_for('admin_dashboard') }}">
+                        Dashboard
+                    </a>
+                </li>
+            </ul>
             {% endif %}
+
         </div>
     </nav>
     <div class="container mt-4">
