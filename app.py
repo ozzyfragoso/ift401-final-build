@@ -1,6 +1,7 @@
 
 import os
-from decimal import Decimal, InvalidOperation
+import random
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime, time
 
 from dotenv import load_dotenv
@@ -175,7 +176,6 @@ def login():
         if user and bcrypt.check_password_hash(user.password, password):
             login_user(user)
 
-            # Redirect based on account type
             if user.admin_access:
                 return redirect(url_for('admin_dashboard'))
 
@@ -184,6 +184,7 @@ def login():
         flash('Invalid username or password.', 'danger')
 
     return render_template('login.html')
+
 
 @app.route('/')
 @login_required
@@ -198,8 +199,6 @@ def dashboard():
     """
 
 
-
-
 @app.route('/logout')
 @login_required
 def logout():
@@ -209,7 +208,58 @@ def logout():
 
 
 
-# Administrator Dashboard
+MAX_PRICE_CHANGE = 0.01
+PRICE_UPDATE_SECONDS = 10
+last_price_update = None
+
+
+def generate_stock_price(current_price):
+    current_price = Decimal(str(current_price))
+    change_percent = Decimal(
+        str(random.uniform(-MAX_PRICE_CHANGE, MAX_PRICE_CHANGE))
+    )
+
+    new_price = (
+        current_price * (Decimal('1') + change_percent)
+    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    if new_price == current_price:
+        new_price = current_price + (
+            Decimal('0.01') if change_percent >= 0 else Decimal('-0.01')
+        )
+
+    return max(Decimal('0.01'), new_price)
+
+
+def update_all_stock_prices():
+    active_stocks = Stock.query.filter_by(status='active').all()
+
+    try:
+        for stock in active_stocks:
+            stock.current_price = generate_stock_price(
+                stock.current_price
+            )
+
+        db.session.commit()
+        return len(active_stocks)
+
+    except Exception:
+        db.session.rollback()
+        raise
+
+def prices_due_for_update():
+    global last_price_update
+    now = datetime.now()
+
+    if last_price_update is not None:
+        if (now - last_price_update).total_seconds() < PRICE_UPDATE_SECONDS:
+            return False
+
+    last_price_update = now
+    return True
+
+
+
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
@@ -222,7 +272,6 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', stocks=stocks)
 
 
-# Check stock information before confirmation
 def check_new_stock(symbol, company_name, price_text, shares_text):
     if not symbol or not company_name or not price_text or not shares_text:
         return 'All fields are required.'
@@ -257,7 +306,6 @@ def check_new_stock(symbol, company_name, price_text, shares_text):
     return None
 
 
-# Create Stock - Administrator Only
 @app.route('/admin/stocks/create', methods=['GET', 'POST'])
 @login_required
 def create_stock():
@@ -298,7 +346,6 @@ def create_stock():
     return render_template('create_stock.html')
 
 
-# Save stock only after administrator confirmation
 @app.route('/admin/stocks/create/confirm', methods=['POST'])
 @login_required
 def create_stock_confirm():
@@ -346,9 +393,6 @@ def create_stock_confirm():
         return redirect(url_for('create_stock'))
 
 
-
-
-# Read and validate the market schedule form
 def read_schedule_form(form):
     try:
         market_date = datetime.strptime(
@@ -386,7 +430,6 @@ def read_schedule_form(form):
         raise ValueError('Enter a valid date, status, and trading hours.')
 
 
-# Insert a new schedule or update an existing date
 def save_market_schedule(values):
     schedule = MarketSchedule.query.filter_by(
         market_date=values['market_date']
@@ -408,7 +451,6 @@ def save_market_schedule(values):
     db.session.commit()
 
 
-# Market Schedule - Administrator Only
 @app.route('/admin/market-schedule', methods=['GET', 'POST'])
 @login_required
 def market_schedule():
@@ -436,12 +478,6 @@ def market_schedule():
         'market_schedule.html',
         schedules=schedules
     )
-
-
-
-
-
-# Buy Stock
 
 
 def market_is_open():
@@ -550,27 +586,34 @@ def check_buy_order(stock, quantity):
     return None
 
 
+
 @app.route('/stocks')
 @login_required
 def stocks():
-    active_stocks = Stock.query.filter_by(
-        status='active'
-    ).all()
+    try:
+        if market_is_open() and prices_due_for_update():
+            update_all_stock_prices()
 
-    holdings = Holding.query.filter(
-        Holding.user_id == current_user.user_id,
+    except Exception:
+        app.logger.exception('Stock price generation failed')
+        flash('Stock prices could not be updated.', 'warning')
+
+    active_stocks = Stock.query.filter_by(status='active').all()
+
+    holdings = Holding.query.filter_by(
+        user_id=current_user.user_id
+    ).filter(
         Holding.quantity > 0
     ).all()
 
-    owned_stock_ids = {
-        holding.stock_id for holding in holdings
-    }
+    owned_stock_ids = {holding.stock_id for holding in holdings}
 
     return render_template(
         'stocks.html',
         stocks=active_stocks,
         owned_stock_ids=owned_stock_ids
     )
+
 
 
 def get_portfolio(user_id):
@@ -787,12 +830,18 @@ def buy_stock(symbol):
     return redirect(url_for('stocks'))
 
 
+def price_unchanged(reviewed_price_text, current_price):
+    try:
+        return Decimal(reviewed_price_text) == current_price
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
 @app.route('/stocks/<string:symbol>/sell', methods=['GET', 'POST'])
 @login_required
 def sell_panel(symbol):
     stock = Stock.query.filter_by(
-        symbol=symbol,
-        status='active'
+        symbol=symbol
     ).first()
 
     if stock is None:
@@ -857,12 +906,12 @@ def sell_stock(symbol):
         user = db.session.get(
             User,
             current_user.user_id,
-            with_for_update=True
+            with_for_update=True,
+            populate_existing=True
         )
 
         stock = Stock.query.filter_by(
-            symbol=symbol,
-            status='active'
+            symbol=symbol
         ).with_for_update().first()
 
         if stock is None:
@@ -895,6 +944,16 @@ def sell_stock(symbol):
             return redirect(url_for('stocks'))
 
         price = stock.current_price
+
+        if not price_unchanged(request.form.get('price', ''), price):
+            db.session.rollback()
+            flash(
+                f'The price of {stock.symbol} changed to '
+                f'${price:,.2f}. Review your order again.',
+                'warning'
+            )
+            return redirect(url_for('sell_panel', symbol=symbol))
+
         total = quantity * price
 
         update_cash_balance(user, total)
@@ -916,18 +975,16 @@ def sell_stock(symbol):
 
         db.session.commit()
 
+        shares = 'share' if quantity == 1 else 'shares'
+
         flash(
-            f'Sale complete: Sold {quantity} shares of '
+            f'Sale complete: Sold {quantity} {shares} of '
             f'{stock.symbol} for ${total:,.2f}.',
             'success'
         )
 
     except Exception:
         db.session.rollback()
-        app.logger.exception('Sell Stock transaction failed')
         flash('Sale failed. Please try again.', 'danger')
 
     return redirect(url_for('stocks'))
-
-
-
