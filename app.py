@@ -1,5 +1,6 @@
 
 import os
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, time
 
 from dotenv import load_dotenv
@@ -173,13 +174,16 @@ def login():
 
         if user and bcrypt.check_password_hash(user.password, password):
             login_user(user)
-            flash('Login successful!', 'success')
+
+            # Redirect based on account type
+            if user.admin_access:
+                return redirect(url_for('admin_dashboard'))
+
             return redirect(url_for('dashboard'))
 
         flash('Invalid username or password.', 'danger')
 
     return render_template('login.html')
-
 
 @app.route('/')
 @login_required
@@ -194,12 +198,250 @@ def dashboard():
     """
 
 
+
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+
+
+# Administrator Dashboard
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    stocks = Stock.query.order_by(Stock.symbol).all()
+
+    return render_template('admin_dashboard.html', stocks=stocks)
+
+
+# Check stock information before confirmation
+def check_new_stock(symbol, company_name, price_text, shares_text):
+    if not symbol or not company_name or not price_text or not shares_text:
+        return 'All fields are required.'
+
+    if len(symbol) > 10:
+        return 'Ticker must be 10 characters or fewer.'
+
+    if len(company_name) > 100:
+        return 'Company name must be 100 characters or fewer.'
+
+    try:
+        price = Decimal(price_text)
+        shares = int(shares_text)
+    except (InvalidOperation, ValueError, OverflowError):
+        return 'Enter a valid initial price and number of shares.'
+
+    if not price.is_finite() or price < Decimal('0.01'):
+        return 'Initial price must be at least 0.01.'
+
+    if price.as_tuple().exponent < -2:
+        return 'Initial price cannot have more than 2 decimal places.'
+
+    if price > Decimal('9999999999999.99'):
+        return 'Initial price is too large.'
+
+    if shares < 1 or shares > 2147483647:
+        return 'Shares outstanding must be between 1 and 2147483647.'
+
+    if Stock.query.filter_by(symbol=symbol).first():
+        return f'Ticker {symbol} is already in use.'
+
+    return None
+
+
+# Create Stock - Administrator Only
+@app.route('/admin/stocks/create', methods=['GET', 'POST'])
+@login_required
+def create_stock():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        symbol = request.form.get('symbol', '').strip().upper()
+        company_name = request.form.get('company_name', '').strip()
+        price_text = request.form.get('current_price', '').strip()
+        shares_text = request.form.get('available_quantity', '').strip()
+
+        error = check_new_stock(
+            symbol, company_name, price_text, shares_text
+        )
+
+        if error:
+            flash(error, 'danger')
+            return render_template(
+                'create_stock.html',
+                form_values={
+                    'symbol': symbol,
+                    'company_name': company_name,
+                    'current_price': price_text,
+                    'available_quantity': shares_text
+                }
+            )
+
+        return render_template(
+            'confirm_stock.html',
+            symbol=symbol,
+            company_name=company_name,
+            current_price=price_text,
+            available_quantity=shares_text
+        )
+
+    return render_template('create_stock.html')
+
+
+# Save stock only after administrator confirmation
+@app.route('/admin/stocks/create/confirm', methods=['POST'])
+@login_required
+def create_stock_confirm():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    symbol = request.form.get('symbol', '').strip().upper()
+    company_name = request.form.get('company_name', '').strip()
+    price_text = request.form.get('current_price', '').strip()
+    shares_text = request.form.get('available_quantity', '').strip()
+
+    error = check_new_stock(
+        symbol, company_name, price_text, shares_text
+    )
+
+    if error:
+        flash(error, 'danger')
+        return render_template(
+            'create_stock.html',
+            form_values={
+                'symbol': symbol,
+                'company_name': company_name,
+                'current_price': price_text,
+                'available_quantity': shares_text
+            }
+        )
+
+    new_stock = Stock(
+        symbol=symbol,
+        company_name=company_name,
+        current_price=Decimal(price_text),
+        available_quantity=int(shares_text),
+        status='active'
+    )
+
+    try:
+        db.session.add(new_stock)
+        db.session.commit()
+        flash('Stock created successfully!', 'success')
+        return redirect(url_for('admin_dashboard'))
+    except Exception:
+        db.session.rollback()
+        flash('Could not create stock.', 'danger')
+        return redirect(url_for('create_stock'))
+
+
+
+
+# Read and validate the market schedule form
+def read_schedule_form(form):
+    try:
+        market_date = datetime.strptime(
+            form.get('market_date', ''), '%Y-%m-%d'
+        ).date()
+
+        status = form.get('market_status', '')
+
+        if status not in ('open', 'closed', 'holiday'):
+            raise ValueError('Invalid market status.')
+
+        open_time = None
+        close_time = None
+
+        if status == 'open':
+            open_time = datetime.strptime(
+                form.get('open_time', ''), '%H:%M'
+            ).time()
+            close_time = datetime.strptime(
+                form.get('close_time', ''), '%H:%M'
+            ).time()
+
+            if open_time >= close_time:
+                raise ValueError('Opening time must be before closing time.')
+
+        return {
+            'market_date': market_date,
+            'market_status': status,
+            'open_time': open_time,
+            'close_time': close_time,
+            'notes': form.get('notes', '').strip()
+        }
+
+    except ValueError:
+        raise ValueError('Enter a valid date, status, and trading hours.')
+
+
+# Insert a new schedule or update an existing date
+def save_market_schedule(values):
+    schedule = MarketSchedule.query.filter_by(
+        market_date=values['market_date']
+    ).first()
+
+    if schedule is None:
+        schedule = MarketSchedule(
+            market_date=values['market_date'],
+            admin_id=current_user.user_id
+        )
+        db.session.add(schedule)
+
+    schedule.market_status = values['market_status']
+    schedule.open_time = values['open_time']
+    schedule.close_time = values['close_time']
+    schedule.notes = values['notes']
+    schedule.admin_id = current_user.user_id
+
+    db.session.commit()
+
+
+# Market Schedule - Administrator Only
+@app.route('/admin/market-schedule', methods=['GET', 'POST'])
+@login_required
+def market_schedule():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            values = read_schedule_form(request.form)
+            save_market_schedule(values)
+            flash('Market schedule saved successfully!', 'success')
+            return redirect(url_for('market_schedule'))
+        except ValueError as error:
+            flash(str(error), 'danger')
+        except Exception:
+            db.session.rollback()
+            flash('Could not save market schedule.', 'danger')
+
+    schedules = MarketSchedule.query.order_by(
+        MarketSchedule.market_date
+    ).all()
+
+    return render_template(
+        'market_schedule.html',
+        schedules=schedules
+    )
+
+
+
+
+
+# Buy Stock
 
 
 def market_is_open():
@@ -589,5 +831,4 @@ def sell_stock(symbol):
     return redirect(url_for('stocks'))
 
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+
