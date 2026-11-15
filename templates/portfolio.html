@@ -13,6 +13,7 @@
             <th>Company</th>
             <th>Qty Held</th>
             <th>Price</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -22,6 +23,10 @@
             <td>{{ row.company_name }}</td>
             <td>{{ row.quantity }}</td>
             <td>${{ "{:,.2f}".format(row.current_price) }}</td>
+            {# SELL is shown on every row; the Sell panel checks the market #}
+            <td>
+                <a href="{{ url_for('sell_panel', symbol=row.symbol) }}" class="btn btn-danger btn-sm">SELL</a>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
