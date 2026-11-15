@@ -616,11 +616,13 @@ def calculate_portfolio_summary(portfolio):
 @login_required
 def portfolio():
     customer_portfolio = get_portfolio(current_user.user_id)
+    holdings_value = calculate_portfolio_summary(customer_portfolio)
 
     return render_template(
         'portfolio.html',
         portfolio=customer_portfolio,
-        cash_balance=current_user.cash_balance
+        cash_balance=current_user.cash_balance,
+        holdings_value=holdings_value
     )
 
 
