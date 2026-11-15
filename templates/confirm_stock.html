@@ -1,0 +1,47 @@
+
+{% extends "base.html" %}
+
+{% block title %}Confirm Stock{% endblock %}
+
+{% block content %}
+<h2>Confirm stock creation?</h2>
+
+<p>Please review the stock information:</p>
+
+<table class="table">
+    <tr>
+        <th>Ticker</th>
+        <td>{{ symbol }}</td>
+    </tr>
+    <tr>
+        <th>Company name</th>
+        <td>{{ company_name }}</td>
+    </tr>
+    <tr>
+        <th>Shares outstanding</th>
+        <td>{{ available_quantity }}</td>
+    </tr>
+    <tr>
+        <th>Initial price</th>
+        <td>${{ current_price }}</td>
+    </tr>
+</table>
+
+<form method="POST" action="{{ url_for('create_stock_confirm') }}">
+    <input type="hidden" name="symbol" value="{{ symbol }}">
+    <input type="hidden" name="company_name" value="{{ company_name }}">
+    <input type="hidden" name="available_quantity"
+           value="{{ available_quantity }}">
+    <input type="hidden" name="current_price"
+           value="{{ current_price }}">
+
+    <button type="submit" class="btn btn-primary">
+        Yes
+    </button>
+
+    <a href="{{ url_for('admin_dashboard') }}"
+       class="btn btn-secondary">
+        No
+    </a>
+</form>
+{% endblock %}
