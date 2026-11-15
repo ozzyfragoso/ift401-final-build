@@ -612,6 +612,18 @@ def calculate_portfolio_summary(portfolio):
     return holdings_value
 
 
+@app.route('/portfolio')
+@login_required
+def portfolio():
+    customer_portfolio = get_portfolio(current_user.user_id)
+
+    return render_template(
+        'portfolio.html',
+        portfolio=customer_portfolio,
+        cash_balance=current_user.cash_balance
+    )
+
+
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):

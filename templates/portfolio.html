@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">My Portfolio &mdash; Cash Balance: ${{ "{:,.2f}".format(cash_balance) }}</h2>
+
+{% if portfolio %}
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>Ticker</th>
+            <th>Company</th>
+            <th>Qty Held</th>
+            <th>Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in portfolio %}
+        <tr>
+            <td>{{ row.symbol }}</td>
+            <td>{{ row.company_name }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>${{ "{:,.2f}".format(row.current_price) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>You don't own any stocks yet. <a href="{{ url_for('stocks') }}">Go to Stocks</a></p>
+{% endif %}
+{% endblock %}
