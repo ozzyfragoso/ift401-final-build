@@ -40,6 +40,15 @@
             </ul>
             {% endif %}
 
+            {# Log Out on every page for both roles, so a shared computer is never left signed in #}
+            {% if current_user.is_authenticated %}
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('logout') }}">Log Out</a>
+                </li>
+            </ul>
+            {% endif %}
+
         </div>
     </nav>
     <div class="container mt-4">
