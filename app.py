@@ -346,7 +346,42 @@ def create_stock_confirm():
         return redirect(url_for('create_stock'))
 
 
+# Update Stock - Administrator Only
+@app.route('/admin/stocks/edit/<int:stock_id>', methods=['GET', 'POST'])
+@login_required
+def edit_stock(stock_id):
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('dashboard'))
 
+    stock = db.get_or_404(Stock, stock_id)
+
+    if request.method == 'POST':
+        try:
+            price = Decimal(request.form['current_price'])
+            quantity = int(request.form['available_quantity'])
+            status = request.form['status']
+
+            if not price.is_finite() or price <= 0 or quantity < 0:
+                raise ValueError('Invalid price or quantity')
+
+            if status not in ('active', 'inactive'):
+                raise ValueError('Invalid stock status')
+
+            stock.current_price = price
+            stock.available_quantity = quantity
+            stock.status = status
+
+            db.session.commit()
+            flash('Stock updated successfully!', 'success')
+            return redirect(url_for('admin_dashboard'))
+
+        except (ValueError, InvalidOperation, KeyError):
+            flash('Please enter valid stock information.', 'danger')
+        except Exception:
+            db.session.rollback()
+            flash('Could not update stock.', 'danger')
+    return render_template('edit_stock.html', stock=stock)
 
 # Read and validate the market schedule form
 def read_schedule_form(form):
