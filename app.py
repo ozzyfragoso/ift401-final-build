@@ -179,7 +179,7 @@ def login():
             if user.admin_access:
                 return redirect(url_for('admin_dashboard'))
 
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('portfolio'))
 
         flash('Invalid username or password.', 'danger')
 
@@ -188,15 +188,12 @@ def login():
 
 @app.route('/')
 @login_required
-def dashboard():
-    return f"""
-    <h2>Stock Trading System</h2>
-    <p>Welcome, {current_user.username}!</p>
-    <p>You have successfully logged in.</p>
-    <a href="/stocks">View Stocks</a>
-    <br>
-    <a href="/logout">Logout</a>
-    """
+def home():
+    # Each role has its own home page, the same places login sends them
+    if current_user.admin_access:
+        return redirect(url_for('admin_dashboard'))
+
+    return redirect(url_for('portfolio'))
 
 
 @app.route('/logout')
@@ -265,7 +262,7 @@ def prices_due_for_update():
 def admin_dashboard():
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     stocks = Stock.query.order_by(Stock.symbol).all()
 
@@ -311,7 +308,7 @@ def check_new_stock(symbol, company_name, price_text, shares_text):
 def create_stock():
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     if request.method == 'POST':
         symbol = request.form.get('symbol', '').strip().upper()
@@ -351,7 +348,7 @@ def create_stock():
 def create_stock_confirm():
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     symbol = request.form.get('symbol', '').strip().upper()
     company_name = request.form.get('company_name', '').strip()
@@ -456,7 +453,7 @@ def save_market_schedule(values):
 def market_schedule():
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     if request.method == 'POST':
         try:
