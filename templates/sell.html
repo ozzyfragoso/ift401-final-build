@@ -38,7 +38,7 @@
                     <p class="fw-bold">Confirm sale of stocks?</p>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-danger">Yes</button>
-                        <a href="{{ url_for('stocks') }}" class="btn btn-secondary">No</a>
+                        <a href="{{ url_for('portfolio') }}" class="btn btn-secondary">No</a>
                         <a href="{{ url_for('sell_panel', symbol=stock.symbol) }}"
                            class="btn btn-outline-danger ms-auto">Edit order</a>
                     </div>
