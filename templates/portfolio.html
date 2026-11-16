@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">My Portfolio &mdash; Cash Balance: ${{ "{:,.2f}".format(cash_balance) }}</h2>
+
+{% if portfolio %}
+<p>Holdings value: ${{ "{:,.2f}".format(holdings_value) }}</p>
+
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>Ticker</th>
+            <th>Company</th>
+            <th>Qty Held</th>
+            <th>Price</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in portfolio %}
+        <tr>
+            <td>{{ row.symbol }}</td>
+            <td>{{ row.company_name }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>${{ "{:,.2f}".format(row.current_price) }}</td>
+            {# SELL is shown on every row; the Sell panel checks the market #}
+            <td>
+                <a href="{{ url_for('sell_panel', symbol=row.symbol) }}" class="btn btn-danger btn-sm">SELL</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>You don't own any stocks yet. <a href="{{ url_for('stocks') }}">Go to Stocks</a></p>
+{% endif %}
+{% endblock %}

@@ -18,12 +18,13 @@ The project follows the course Project Handbook. It runs locally first and is de
 | Feature | Status |
 |---|---|
 | Login and registration | Complete |
-| Admin dashboard and market schedule | Planned |
+| Admin dashboard, create stock and market schedule | Complete |
 | Buy stock | Complete |
-| Portfolio | In progress |
-| Sell stock | Planned |
-| Random stock price generator | Planned |
-| Transaction history | Planned |
+| Portfolio | Complete |
+| Sell stock | Complete |
+| Random stock price generator | In progress |
+| Transaction history | Complete |
+| Deposit and withdraw cash | Planned |
 | Profit/loss tracking (extra) | Planned |
 | Live stock price chart (extra) | Planned |
 
