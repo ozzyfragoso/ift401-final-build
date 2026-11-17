@@ -30,6 +30,8 @@
 
                 <form method="POST" action="{{ url_for('buy_stock', symbol=stock.symbol) }}">
                     <input type="hidden" name="quantity" value="{{ quantity }}">
+                    {# The price the customer reviewed; buy_stock() refuses the purchase if it has changed #}
+                    <input type="hidden" name="price" value="{{ stock.current_price }}">
                     <p class="fw-bold">Confirm purchase of stocks?</p>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Yes</button>

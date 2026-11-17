@@ -803,6 +803,16 @@ def buy_stock(symbol):
         request.form.get('quantity', '').strip()
     )
 
+    # The customer confirmed a total at the reviewed price; if the price has
+    # moved since then, they review the order again instead of paying more or less
+    if not price_unchanged(request.form.get('price', ''), stock.current_price):
+        flash(
+            f'The price of {stock.symbol} changed to '
+            f'${stock.current_price:,.2f}. Review your order again.',
+            'warning'
+        )
+        return redirect(url_for('buy_panel', symbol=symbol))
+
     problem = check_buy_order(stock, quantity)
 
     if problem:
