@@ -35,7 +35,7 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    cash_balance = db.Column(db.Numeric(15, 2), default=0.00, nullable=False)
+    cash_balance = db.Column(db.Numeric(15, 2), default=10000.00, nullable=False)
     admin_access = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
@@ -147,7 +147,7 @@ def register():
             username=username,
             email=email,
             password=hashed_password,
-            cash_balance=0,
+            cash_balance=10000.00,
             admin_access=False
         )
 
