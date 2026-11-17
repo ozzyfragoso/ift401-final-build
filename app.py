@@ -396,7 +396,7 @@ def create_stock_confirm():
 def edit_stock(stock_id):
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     stock = db.get_or_404(Stock, stock_id)
 
