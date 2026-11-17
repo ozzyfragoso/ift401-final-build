@@ -32,6 +32,7 @@
             <th>Price</th>
             <th>Available Shares</th>
             <th>Status</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -42,6 +43,12 @@
             <td>${{ stock.current_price }}</td>
             <td>{{ stock.available_quantity }}</td>
             <td>{{ stock.status }}</td>
+            <td>
+    <a href="{{ url_for('edit_stock', stock_id=stock.stock_id) }}"
+       class="btn btn-primary btn-sm">
+        Edit Stock
+    </a>
+</td>
         </tr>
         {% else %}
         <tr>
