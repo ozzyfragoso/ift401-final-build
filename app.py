@@ -662,11 +662,12 @@ def get_portfolio(user_id):
         ).first()
 
         portfolio.append({
-            'symbol': stock.symbol,
-            'company_name': stock.company_name,
-            'quantity': holding.quantity,
-            'current_price': stock.current_price
-        })
+    'stock_id': holding.stock_id,
+    'symbol': stock.symbol,
+    'company_name': stock.company_name,
+    'quantity': holding.quantity,
+    'current_price': stock.current_price
+})
 
     # Alphabetical by ticker, as in the Selling stocks mockup
     return sorted(portfolio, key=lambda row: row['symbol'])
@@ -684,6 +685,7 @@ def calculate_portfolio_summary(portfolio):
     return holdings_value
 
 
+
 @app.route('/portfolio')
 @login_required
 def portfolio():
@@ -694,13 +696,71 @@ def portfolio():
     customer_portfolio = get_portfolio(current_user.user_id)
     holdings_value = calculate_portfolio_summary(customer_portfolio)
 
+    unrealized = 0
+    stock_profits = []
+
+    for row in customer_portfolio:
+        holding = Holding.query.filter_by(
+            user_id=current_user.user_id,
+            stock_id=row['stock_id']
+        ).first()
+
+        if holding:
+            profit = (
+                float(row['current_price']) -
+                float(holding.average_price)
+            ) * holding.quantity
+
+            unrealized += profit
+            stock_profits.append({
+                'symbol': row['symbol'],
+                'profit': round(profit, 2)
+            })
+
+    transactions = StockTransaction.query.filter_by(
+        user_id=current_user.user_id
+    ).order_by(
+        StockTransaction.transaction_date,
+        StockTransaction.stock_transaction_id
+    ).all()
+
+    realized = 0
+    positions = {}
+
+    for tx in transactions:
+        stock_id = tx.stock_id
+        quantity = tx.quantity
+        price = float(tx.price_per_share)
+
+        if stock_id not in positions:
+            positions[stock_id] = {'qty': 0, 'cost': 0}
+
+        position = positions[stock_id]
+
+        if tx.transaction_type == 'buy':
+            position['cost'] += quantity * price
+            position['qty'] += quantity
+
+        elif tx.transaction_type == 'sell' and position['qty'] > 0:
+            avg_cost = position['cost'] / position['qty']
+            realized += (price - avg_cost) * quantity
+            position['qty'] -= quantity
+            position['cost'] -= avg_cost * quantity
+
+    pnl = {
+        'realized': round(realized, 2),
+        'unrealized': round(unrealized, 2),
+        'total': round(realized + unrealized, 2),
+        'stocks': stock_profits
+    }
+
     return render_template(
         'portfolio.html',
         portfolio=customer_portfolio,
         cash_balance=current_user.cash_balance,
-        holdings_value=holdings_value
+        holdings_value=holdings_value,
+        pnl=pnl
     )
-
 
 def get_transaction_history(user_id):
     # Every stock trade the customer has made

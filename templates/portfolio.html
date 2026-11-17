@@ -1,39 +1,78 @@
+
 {% extends "base.html" %}
-
 {% block title %}Portfolio{% endblock %}
-
 {% block content %}
-<h2 class="mb-4">My Portfolio &mdash; Cash Balance: ${{ "{:,.2f}".format(cash_balance) }}</h2>
+{% set p = pnl | default({}, true) %}
 
+<style>
+.dash{background:#111827;color:white;border-radius:15px;padding:22px}
+.box{background:#263449;border-radius:10px;padding:15px}
+.box h3{color:white;margin:8px 0}
+.panel{border:0;border-radius:12px;box-shadow:0 3px 12px #0001}
+</style>
+
+<div class="dash mb-4">
+<h3>📈 TradePulse</h3>
+<div class="row g-3 mt-2">
+{% for name,value in [('Portfolio Value',cash_balance+holdings_value),('Cash',cash_balance),('Invested',holdings_value)] %}
+<div class="col-md-4"><div class="box">
+<small>{{ name }}</small><h3>${{ "%.2f"|format(value) }}</h3>
+</div></div>
+{% endfor %}
+</div></div>
+
+<div class="row g-3 mb-4">
+{% for name,value in [('Realized P&L',p.get('realized')),('Unrealized P&L',p.get('unrealized')),('Total P&L',p.get('total'))] %}
+<div class="col-md-4"><div class="card panel p-3">
+<small>{{ name }}</small>
+<h3 class="{{ 'text-success' if value is not none and value>=0 else 'text-danger' if value is not none else 'text-muted' }}">
+{{ "$%.2f"|format(value) if value is not none else "—" }}</h3>
+</div></div>
+{% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+<div class="col-md-8"><div class="card panel p-3">
+<h5>Profit & Loss by Stock</h5>
+<div style="height:200px"><canvas id="profit"></canvas></div>
+</div></div>
+<div class="col-md-4"><div class="card panel p-3">
+<h5>Asset Allocation</h5>
+<div style="height:200px"><canvas id="allocation"></canvas></div>
+</div></div>
+</div>
+
+<div class="card panel p-3 mb-4">
+<h5>My Holdings</h5>
 {% if portfolio %}
-<p>Holdings value: ${{ "{:,.2f}".format(holdings_value) }}</p>
-
-<table class="table align-middle">
-    <thead>
-        <tr>
-            <th>Ticker</th>
-            <th>Company</th>
-            <th>Qty Held</th>
-            <th>Price</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in portfolio %}
-        <tr>
-            <td>{{ row.symbol }}</td>
-            <td>{{ row.company_name }}</td>
-            <td>{{ row.quantity }}</td>
-            <td>${{ "{:,.2f}".format(row.current_price) }}</td>
-            {# SELL is shown on every row; the Sell panel checks the market #}
-            <td>
-                <a href="{{ url_for('sell_panel', symbol=row.symbol) }}" class="btn btn-danger btn-sm">SELL</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-responsive"><table class="table table-hover">
+<tr><th>Stock</th><th>Company</th><th>Qty</th><th>Price</th><th></th></tr>
+{% for s in portfolio %}
+<tr><td>{{ s.symbol }}</td><td>{{ s.company_name }}</td>
+<td>{{ s.quantity }}</td><td>${{ "%.2f"|format(s.current_price) }}</td>
+<td><a class="btn btn-danger btn-sm" href="{{ url_for('sell_panel',symbol=s.symbol) }}">SELL</a></td></tr>
+{% endfor %}
+</table></div>
 {% else %}
-<p>You don't own any stocks yet. <a href="{{ url_for('stocks') }}">Go to Stocks</a></p>
+<p>No holdings. <a href="{{ url_for('stocks') }}">Explore Stocks</a></p>
 {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<script>
+const s={{ p.get('stocks',[])|tojson }};
+if(typeof Chart!=='undefined'){
+new Chart(document.getElementById('profit'),{
+type:'bar',data:{labels:s.map(x=>x.symbol),datasets:[{
+data:s.map(x=>x.profit),backgroundColor:s.map(x=>x.profit>=0?'#10b981':'#ef4444'),maxBarThickness:35}]},
+options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false}}}
+});
+new Chart(document.getElementById('allocation'),{
+type:'doughnut',data:{labels:['Stocks','Cash'],datasets:[{
+data:[{{ holdings_value|float }},{{ cash_balance|float }}],
+backgroundColor:['#06b6d4','#334155']}]},
+options:{maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom'}}}
+});
+}
+</script>
 {% endblock %}
