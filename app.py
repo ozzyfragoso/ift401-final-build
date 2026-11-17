@@ -396,7 +396,7 @@ def create_stock_confirm():
 def edit_stock(stock_id):
     if not current_user.admin_access:
         flash('Administrator access required.', 'danger')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('portfolio'))
 
     stock = db.get_or_404(Stock, stock_id)
 
@@ -625,6 +625,11 @@ def check_buy_order(stock, quantity):
 @app.route('/stocks')
 @login_required
 def stocks():
+    # Customer pages are for customers; administrators have their own dashboard
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     try:
         if market_is_open() and prices_due_for_update():
             update_all_stock_prices()
@@ -682,6 +687,10 @@ def calculate_portfolio_summary(portfolio):
 @app.route('/portfolio')
 @login_required
 def portfolio():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     customer_portfolio = get_portfolio(current_user.user_id)
     holdings_value = calculate_portfolio_summary(customer_portfolio)
 
@@ -734,6 +743,10 @@ def get_transaction_history(user_id):
 @app.route('/history')
 @login_required
 def transaction_history():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     history = get_transaction_history(current_user.user_id)
 
     return render_template('history.html', history=history)
@@ -742,6 +755,10 @@ def transaction_history():
 @app.route('/stocks/<string:symbol>/buy', methods=['GET', 'POST'])
 @login_required
 def buy_panel(symbol):
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     stock = Stock.query.filter_by(
         symbol=symbol,
         status='active'
@@ -786,6 +803,10 @@ def buy_panel(symbol):
 @app.route('/stocks/<string:symbol>/buy/confirm', methods=['POST'])
 @login_required
 def buy_stock(symbol):
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     stock = Stock.query.filter_by(
         symbol=symbol,
         status='active'
@@ -802,6 +823,16 @@ def buy_stock(symbol):
     quantity = read_quantity(
         request.form.get('quantity', '').strip()
     )
+
+    # The customer confirmed a total at the reviewed price; if the price has
+    # moved since then, they review the order again instead of paying more or less
+    if not price_unchanged(request.form.get('price', ''), stock.current_price):
+        flash(
+            f'The price of {stock.symbol} changed to '
+            f'${stock.current_price:,.2f}. Review your order again.',
+            'warning'
+        )
+        return redirect(url_for('buy_panel', symbol=symbol))
 
     problem = check_buy_order(stock, quantity)
 
@@ -864,6 +895,10 @@ def price_unchanged(reviewed_price_text, current_price):
 @app.route('/portfolio/<string:symbol>/sell', methods=['GET', 'POST'])
 @login_required
 def sell_panel(symbol):
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     stock = Stock.query.filter_by(
         symbol=symbol
     ).first()
@@ -926,6 +961,10 @@ def sell_panel(symbol):
 @app.route('/portfolio/<string:symbol>/sell/confirm', methods=['POST'])
 @login_required
 def sell_stock(symbol):
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
     try:
         user = db.session.get(
             User,
