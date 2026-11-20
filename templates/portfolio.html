@@ -14,7 +14,7 @@
 <div class="dash mb-4">
 <h3>📈 TradePulse</h3>
 <div class="row g-3 mt-2">
-{% for name,value in [('Portfolio Value',cash_balance+holdings_value),('Cash',cash_balance),('Invested',holdings_value)] %}
+{% for name,value in [('Portfolio Value',holdings_value),('Cash',cash_balance),('Invested',holdings_value)] %}
 <div class="col-md-4"><div class="box">
 <small>{{ name }}</small><h3>${{ "%.2f"|format(value) }}</h3>
 </div></div>
