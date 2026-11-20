@@ -1,0 +1,127 @@
+
+{% extends "base.html" %}
+
+{% block title %}Transaction History{% endblock %}
+
+{% block content %}
+
+<style>
+    .admin-header {
+        background: #111827;
+        color: white;
+        border-radius: 14px;
+        padding: 25px;
+        margin-bottom: 24px;
+    }
+
+    .admin-card {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+        margin-bottom: 24px;
+    }
+
+    .admin-btn {
+        background: #29384f;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+    }
+
+    .admin-btn:hover {
+        background: #344763;
+        color: white;
+    }
+
+    .admin-table {
+        margin-bottom: 0;
+    }
+
+    .admin-table th {
+        background: #f8fafc;
+        white-space: nowrap;
+    }
+
+    .admin-table td {
+        vertical-align: middle;
+    }
+</style>
+
+<div class="admin-header">
+    <h2 class="mb-2">Transaction History</h2>
+    <p class="mb-0 text-white-50">
+        Monitor all customer BUY and SELL transactions.
+    </p>
+</div>
+
+<div class="admin-card">
+
+    <div class="d-flex justify-content-between
+                align-items-center flex-wrap gap-2 mb-4">
+        <h4 class="mb-0">Customer Transactions</h4>
+
+        <a href="{{ url_for('admin_dashboard') }}"
+           class="btn btn-outline-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped admin-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Stock</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Price per Share</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for transaction, username, symbol in transactions %}
+                <tr>
+                    <td>
+                        {{ transaction.transaction_date.strftime('%Y-%m-%d %I:%M %p') }}
+                    </td>
+
+                    <td>{{ username }}</td>
+
+                    <td>{{ symbol }}</td>
+
+                    <td>
+                        {% if transaction.transaction_type|upper == 'BUY' %}
+                            <span class="badge bg-success">BUY</span>
+                        {% else %}
+                            <span class="badge bg-danger">SELL</span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ transaction.quantity }}</td>
+
+                    <td>
+                        ${{ "%.2f"|format(transaction.price_per_share) }}
+                    </td>
+
+                    <td>
+                        ${{ "%.2f"|format(transaction.total_amount) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        No transactions available.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

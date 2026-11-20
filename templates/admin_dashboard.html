@@ -4,59 +4,132 @@
 {% block title %}Administrator Dashboard{% endblock %}
 
 {% block content %}
-<h2>Administrator Dashboard</h2>
 
-<div class="row mt-4">
-    <div class="col-md-6 mb-3">
-        <a href="{{ url_for('create_stock') }}"
-           class="btn btn-primary w-100">
-            Create Stock
-        </a>
-    </div>
+<style>
+    .admin-header {
+        background: #111827;
+        color: white;
+        border-radius: 14px;
+        padding: 25px;
+        margin-bottom: 24px;
+    }
 
-    <div class="col-md-6 mb-3">
-        <a href="{{ url_for('market_schedule') }}"
-           class="btn btn-primary w-100">
-            Market Schedule
-        </a>
+    .admin-card {
+        background: white;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+        margin-bottom: 24px;
+    }
+
+    .admin-btn {
+        background: #29384f;
+        border: none;
+        border-radius: 9px;
+        padding: 16px;
+        font-weight: 500;
+        color: white;
+    }
+
+    .admin-btn:hover {
+        background: #344763;
+        color: white;
+    }
+
+    .admin-table {
+        margin-bottom: 0;
+    }
+
+    .admin-table th {
+        background: #f8fafc;
+    }
+</style>
+
+<div class="admin-header">
+    <h2 class="mb-2">Administrator Dashboard</h2>
+    <p class="mb-0 text-white-50">
+        Manage stocks, monitor transactions, and control market hours.
+    </p>
+</div>
+
+<div class="admin-card">
+    <h4 class="mb-3">Stock Trading Management</h4>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <a href="{{ url_for('create_stock') }}"
+               class="btn admin-btn w-100">
+                Create Stock
+            </a>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <a href="{{ url_for('manage_stocks') }}"
+               class="btn admin-btn w-100">
+                Manage Stocks
+            </a>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <a href="{{ url_for('admin_transactions') }}"
+               class="btn admin-btn w-100">
+                Transaction History
+            </a>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <a href="{{ url_for('market_schedule') }}"
+               class="btn admin-btn w-100">
+                Market Schedule
+            </a>
+        </div>
     </div>
 </div>
 
-<h3 class="mt-4">Stock Inventory</h3>
+<div class="admin-card">
+    <h4 class="mb-3">Stock Inventory</h4>
 
-<table class="table table-bordered table-striped mt-3">
-    <thead>
-        <tr>
-            <th>Ticker</th>
-            <th>Company</th>
-            <th>Price</th>
-            <th>Available Shares</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for stock in stocks %}
-        <tr>
-            <td>{{ stock.symbol }}</td>
-            <td>{{ stock.company_name }}</td>
-            <td>${{ stock.current_price }}</td>
-            <td>{{ stock.available_quantity }}</td>
-            <td>{{ stock.status }}</td>
-            <td>
-    <a href="{{ url_for('edit_stock', stock_id=stock.stock_id) }}"
-       class="btn btn-primary btn-sm">
-        Edit Stock
-    </a>
-</td>
-        </tr>
-        {% else %}
-        <tr>
-            <td colspan="5" class="text-center">
-                No stocks available.
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <div class="table-responsive">
+        <table class="table table-striped admin-table">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Company</th>
+                    <th>Price</th>
+                    <th>Available Shares</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for stock in stocks %}
+                <tr>
+                    <td>{{ stock.symbol }}</td>
+                    <td>{{ stock.company_name }}</td>
+                    <td>${{ "%.2f"|format(stock.current_price) }}</td>
+                    <td>{{ stock.available_quantity }}</td>
+                    <td>
+                        {% if stock.status == 'active' %}
+                            <span class="badge bg-success">
+                                Active
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                Inactive
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">
+                        No stocks available.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% endblock %}

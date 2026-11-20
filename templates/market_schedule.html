@@ -4,105 +4,263 @@
 {% block title %}Market Schedule{% endblock %}
 
 {% block content %}
-<h2>Market Schedule</h2>
 
-<p class="mt-3">
-    Default schedule: 9:00 AM to 5:00 PM on weekdays,
-    closed on holidays.
-</p>
+<style>
+    .market-header {
+        background: #111827;
+        color: white;
+        border-radius: 14px;
+        padding: 25px;
+        margin-bottom: 24px;
+    }
 
-<form method="POST" action="{{ url_for('market_schedule') }}"
-      class="mt-4">
+    .market-card {
+        background: white;
+        border-radius: 14px;
+        padding: 28px;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+        margin-bottom: 24px;
+    }
 
-    <div class="mb-3">
-        <label for="market_date" class="form-label">
-            Market Date
-        </label>
-        <input type="date" class="form-control"
-               id="market_date" name="market_date" required>
+    .market-form {
+        max-width: 540px;
+        margin: 0 auto;
+    }
+
+    .market-form .form-label {
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .market-form .form-control,
+    .market-form .form-select {
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
+
+    .market-btn {
+        background: #29384f;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+
+    .market-btn:hover {
+        background: #344763;
+        color: white;
+    }
+
+    .market-table {
+        margin-bottom: 0;
+    }
+
+    .market-table th {
+        background: #f8fafc;
+        white-space: nowrap;
+    }
+
+    .market-table td {
+        vertical-align: middle;
+        padding: 12px;
+    }
+
+    @media (max-width: 576px) {
+        .market-card {
+            padding: 18px;
+        }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="market-header">
+    <h2 class="mb-2">Market Schedule</h2>
+    <p class="mb-0 text-white-50">
+        Manage trading hours, market closures, and holidays.
+    </p>
+</div>
+
+<!-- Schedule Form -->
+<div class="market-card">
+
+    <h4 class="text-center mb-2">
+        Set Market Schedule
+    </h4>
+
+    <p class="text-muted text-center mb-4">
+        Default schedule: 9:00 AM to 5:00 PM on weekdays,
+        closed on holidays.
+    </p>
+
+    <form method="POST"
+          action="{{ url_for('market_schedule') }}"
+          class="market-form">
+
+        <!-- Market Date -->
+        <div class="mb-3">
+            <label for="market_date" class="form-label">
+                Market Date
+            </label>
+
+            <input type="date"
+                   class="form-control"
+                   id="market_date"
+                   name="market_date"
+                   min="{{ today }}"
+                   required>
+        </div>
+
+        <!-- Trading Hours -->
+        <div class="row">
+
+            <div class="col-md-6 mb-3">
+                <label for="open_time" class="form-label">
+                    Opening Time
+                </label>
+
+                <input type="time"
+                       class="form-control"
+                       id="open_time"
+                       name="open_time">
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label for="close_time" class="form-label">
+                    Closing Time
+                </label>
+
+                <input type="time"
+                       class="form-control"
+                       id="close_time"
+                       name="close_time">
+            </div>
+
+        </div>
+
+        <!-- Market Status -->
+        <div class="mb-3">
+            <label for="market_status" class="form-label">
+                Market Status
+            </label>
+
+            <select class="form-select"
+                    id="market_status"
+                    name="market_status"
+                    required>
+                <option value="" selected disabled>
+                    Select status
+                </option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="holiday">Holiday</option>
+            </select>
+        </div>
+
+        <!-- Notes -->
+        <div class="mb-4">
+            <label for="notes" class="form-label">
+                Notes (Optional)
+            </label>
+
+            <textarea class="form-control"
+                      id="notes"
+                      name="notes"
+                      rows="2"></textarea>
+        </div>
+
+        <!-- Buttons -->
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit"
+                    class="btn market-btn"
+                    onclick="return confirm('Confirm market schedule change?')">
+                Save Schedule
+            </button>
+
+            <a href="{{ url_for('admin_dashboard') }}"
+               class="btn btn-outline-secondary">
+                Back to Dashboard
+            </a>
+        </div>
+
+    </form>
+</div>
+
+<!-- Saved Market Schedules -->
+<div class="market-card">
+
+    <h4 class="mb-4">Upcoming Market Schedules</h4>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle market-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Trading Hours</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for schedule in schedules %}
+                <tr>
+                    <td>
+                        {{ schedule.market_date.strftime('%b %d, %Y') }}
+                    </td>
+
+                    <td>
+                        {% if schedule.market_status == 'open'
+                              and schedule.open_time
+                              and schedule.close_time %}
+
+                            {{ schedule.open_time.strftime('%I:%M %p').lstrip('0') }}
+                            –
+                            {{ schedule.close_time.strftime('%I:%M %p').lstrip('0') }}
+
+                        {% elif schedule.market_status == 'holiday' %}
+                            Closed for Holiday
+
+                        {% elif schedule.market_status == 'closed' %}
+                            Closed
+
+                        {% else %}
+                            Not Set
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if schedule.market_status == 'open' %}
+                            <span class="badge bg-success px-3 py-2">
+                                Open
+                            </span>
+
+                        {% elif schedule.market_status == 'holiday' %}
+                            <span class="badge bg-warning text-dark px-3 py-2">
+                                Holiday
+                            </span>
+
+                        {% else %}
+                            <span class="badge bg-secondary px-3 py-2">
+                                Closed
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ schedule.notes or '-' }}</td>
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center py-4">
+                        No upcoming market schedules.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <div class="mb-3">
-        <label for="open_time" class="form-label">
-            Opening Time
-        </label>
-        <input type="time" class="form-control"
-               id="open_time" name="open_time">
-    </div>
+</div>
 
-    <div class="mb-3">
-        <label for="close_time" class="form-label">
-            Closing Time
-        </label>
-        <input type="time" class="form-control"
-               id="close_time" name="close_time">
-    </div>
-
-    <div class="mb-3">
-        <label for="market_status" class="form-label">
-            Market Status
-        </label>
-        <select class="form-select"
-                id="market_status" name="market_status" required>
-            <option value="" selected disabled>
-                Select status
-            </option>
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-            <option value="holiday">Holiday</option>
-        </select>
-    </div>
-
-    <div class="mb-3">
-        <label for="notes" class="form-label">
-            Notes (Optional)
-        </label>
-        <textarea class="form-control"
-                  id="notes" name="notes" rows="3"></textarea>
-    </div>
-
-    <button type="submit" class="btn btn-primary"
-            onclick="return confirm('Confirm market schedule change?')">
-        Save Schedule
-    </button>
-
-    <a href="{{ url_for('admin_dashboard') }}"
-       class="btn btn-secondary">
-        Back to Dashboard
-    </a>
-</form>
-
-<hr class="my-4">
-
-<h3>Saved Market Schedules</h3>
-
-<table class="table table-bordered table-striped mt-3">
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Opening Time</th>
-            <th>Closing Time</th>
-            <th>Status</th>
-            <th>Notes</th>
-        </tr>
-    </thead>
-
-    <tbody>
-        {% for schedule in schedules %}
-        <tr>
-            <td>{{ schedule.market_date }}</td>
-            <td>{{ schedule.open_time or '-' }}</td>
-            <td>{{ schedule.close_time or '-' }}</td>
-            <td>{{ schedule.market_status }}</td>
-            <td>{{ schedule.notes or '-' }}</td>
-        </tr>
-        {% else %}
-        <tr>
-            <td colspan="5" class="text-center">
-                No schedules available.
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 {% endblock %}
