@@ -204,7 +204,6 @@ def logout():
     return redirect(url_for('login'))
 
 
-
 MAX_PRICE_CHANGE = 0.01
 PRICE_UPDATE_SECONDS = 10
 last_price_update = None
@@ -268,6 +267,47 @@ def admin_dashboard():
 
     return render_template('admin_dashboard.html', stocks=stocks)
 
+# Manage Stocks - Administrator Only
+@app.route('/admin/stocks')
+@login_required
+def manage_stocks():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('portfolio'))
+
+    stocks = Stock.query.order_by(Stock.symbol).all()
+
+    return render_template('manage_stocks.html', stocks=stocks)
+
+
+
+# Transaction History - Administrator Only
+@app.route('/admin/transactions')
+@login_required
+def admin_transactions():
+    if not current_user.admin_access:
+        flash('Administrator access required.', 'danger')
+        return redirect(url_for('portfolio'))
+
+    transactions = (
+        db.session.query(
+            StockTransaction,
+            User.username,
+            Stock.symbol
+        )
+        .join(User, StockTransaction.user_id == User.user_id)
+        .join(Stock, StockTransaction.stock_id == Stock.stock_id)
+        .order_by(
+            StockTransaction.transaction_date.desc(),
+            StockTransaction.stock_transaction_id.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        'admin_transactions.html',
+        transactions=transactions
+    )
 
 def check_new_stock(symbol, company_name, price_text, shares_text):
     if not symbol or not company_name or not price_text or not shares_text:
@@ -505,9 +545,11 @@ def market_schedule():
             db.session.rollback()
             flash('Could not save market schedule.', 'danger')
 
-    schedules = MarketSchedule.query.order_by(
-        MarketSchedule.market_date
-    ).all()
+    schedules = MarketSchedule.query.filter(
+         MarketSchedule.market_date >= datetime.now().date()
+         ).order_by(
+            MarketSchedule.market_date
+            ).all()
 
     return render_template(
         'market_schedule.html',

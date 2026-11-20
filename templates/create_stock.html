@@ -4,55 +4,128 @@
 {% block title %}Create Stock{% endblock %}
 
 {% block content %}
-<h2>Create Stock</h2>
 
-<form method="POST" action="{{ url_for('create_stock') }}">
+<style>
+    .admin-header {
+        background: #111827;
+        color: white;
+        border-radius: 14px;
+        padding: 25px;
+        margin-bottom: 24px;
+    }
 
-    <div class="mb-3">
-        <label for="symbol" class="form-label">Ticker</label>
-        <input type="text" class="form-control"
-               id="symbol" name="symbol" maxlength="10"
-               value="{{ (form_values or {}).get('symbol', '') }}"
-               required>
-    </div>
+    .admin-card {
+        background: white;
+        border-radius: 14px;
+        padding: 25px;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+        margin-bottom: 24px;
+    }
 
-    <div class="mb-3">
-        <label for="company_name" class="form-label">Company name</label>
-        <input type="text" class="form-control"
-               id="company_name" name="company_name" maxlength="100"
-               value="{{ (form_values or {}).get('company_name', '') }}"
-               required>
-    </div>
+    .admin-btn {
+        background: #29384f;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+    }
 
-    <div class="mb-3">
-        <label for="available_quantity" class="form-label">
-            Shares outstanding
-        </label>
-        <input type="number" class="form-control"
-               id="available_quantity" name="available_quantity"
-               min="1" step="1"
-               value="{{ (form_values or {}).get('available_quantity', '') }}"
-               required>
-    </div>
+    .admin-btn:hover {
+        background: #344763;
+        color: white;
+    }
 
-    <div class="mb-3">
-        <label for="current_price" class="form-label">
-            Initial price
-        </label>
-        <input type="number" class="form-control"
-               id="current_price" name="current_price"
-               min="0.01" step="0.01"
-               value="{{ (form_values or {}).get('current_price', '') }}"
-               required>
-    </div>
+    .form-control {
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
 
-    <button type="submit" class="btn btn-primary">
-        Review stock
-    </button>
+    .form-label {
+        font-weight: 500;
+    }
+</style>
 
-    <a href="{{ url_for('admin_dashboard') }}"
-       class="btn btn-secondary">
-        Back to Dashboard
-    </a>
-</form>
+<div class="admin-header">
+    <h2 class="mb-2">Create Stock</h2>
+    <p class="mb-0 text-white-50">
+        Add a new stock to the Stock Trading System.
+    </p>
+</div>
+
+<div class="admin-card">
+
+    <h4 class="mb-4">Stock Information</h4>
+
+    <form method="POST" action="{{ url_for('create_stock') }}">
+
+        <div class="mb-3">
+            <label for="symbol" class="form-label">
+                Ticker
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="symbol"
+                   name="symbol"
+                   maxlength="10"
+                   value="{{ (form_values or {}).get('symbol', '') }}"
+                   required>
+        </div>
+
+        <div class="mb-3">
+            <label for="company_name" class="form-label">
+                Company Name
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="company_name"
+                   name="company_name"
+                   maxlength="100"
+                   value="{{ (form_values or {}).get('company_name', '') }}"
+                   required>
+        </div>
+
+        <div class="mb-3">
+            <label for="available_quantity" class="form-label">
+                Shares Outstanding
+            </label>
+            <input type="number"
+                   class="form-control"
+                   id="available_quantity"
+                   name="available_quantity"
+                   min="1"
+                   step="1"
+                   value="{{ (form_values or {}).get('available_quantity', '') }}"
+                   required>
+        </div>
+
+        <div class="mb-4">
+            <label for="current_price" class="form-label">
+                Initial Price
+            </label>
+            <input type="number"
+                   class="form-control"
+                   id="current_price"
+                   name="current_price"
+                   min="0.01"
+                   step="0.01"
+                   value="{{ (form_values or {}).get('current_price', '') }}"
+                   required>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn admin-btn">
+                Review Stock
+            </button>
+
+            <a href="{{ url_for('admin_dashboard') }}"
+               class="btn btn-outline-secondary">
+                Back to Dashboard
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
 {% endblock %}
