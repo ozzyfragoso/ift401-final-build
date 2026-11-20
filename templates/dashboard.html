@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <h2 class="mb-0">Welcome, {{ current_user.first_name }}</h2>
+    {# Trades only go through while the market is open, so customers see it before they try #}
+    {% if market_open %}
+    <span class="badge bg-success">Market is open</span>
+    {% else %}
+    <span class="badge bg-danger">Market is closed</span>
+    {% endif %}
+</div>
+
+{# Account at a glance: what everything is worth, split into cash and stocks #}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <small class="text-muted">Account value</small>
+                <h3 class="mb-0">${{ "{:,.2f}".format(cash_balance + holdings_value) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <small class="text-muted">Cash</small>
+                <h3 class="mb-0">${{ "{:,.2f}".format(cash_balance) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <small class="text-muted">Invested</small>
+                <h3 class="mb-0">${{ "{:,.2f}".format(holdings_value) }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {# A short profit and loss summary; the cards and charts are on Portfolio #}
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Profit &amp; Loss</h5>
+                {% for name, value in [('Total', pnl.total), ('Realized', pnl.realized), ('Unrealized', pnl.unrealized)] %}
+                <div class="d-flex justify-content-between{% if loop.first %} fw-bold fs-5{% endif %}">
+                    <span>{{ name }}</span>
+                    {# Green for a gain or break-even, red for a loss, with the minus sign before the dollar sign #}
+                    <span class="{{ 'text-success' if value >= 0 else 'text-danger' }}">{{ '-' if value < 0 }}${{ "{:,.2f}".format(value | abs) }}</span>
+                </div>
+                {% endfor %}
+                <a href="{{ url_for('portfolio') }}" class="d-inline-block mt-3">See details on Portfolio</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Recent Trades</h5>
+                {% if recent_trades %}
+                <div class="table-responsive">
+                    <table class="table align-middle mb-2">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Stock</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                                <th>Date and Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trade in recent_trades %}
+                            <tr>
+                                <td>{{ trade.type }}</td>
+                                <td>{{ trade.symbol }}</td>
+                                <td>{{ trade.quantity }}</td>
+                                <td>${{ "{:,.2f}".format(trade.total_amount) }}</td>
+                                <td>{{ trade.date_time }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {# Only the five newest show here; History has every trade #}
+                <a href="{{ url_for('transaction_history') }}">See all trades</a>
+                {% else %}
+                <p class="mb-0">You haven't made any trades yet. <a href="{{ url_for('stocks') }}">Go to Stocks</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('stocks') }}" class="btn btn-primary">Buy stocks</a>
+    <a href="{{ url_for('portfolio') }}" class="btn btn-outline-primary">Sell from Portfolio</a>
+    <a href="{{ url_for('cash_account') }}" class="btn btn-outline-primary">Deposit or withdraw cash</a>
+</div>
+{% endblock %}
