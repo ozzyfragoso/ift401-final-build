@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Account{% endblock %}
+
+{% block content %}
+<h2>Cash Account</h2>
+<p>Current cash balance: <strong>${{ "{:,.2f}".format(current_user.cash_balance) }}</strong></p>
+
+{# One page for both functions, as in the mockup: Deposit on the left, Withdraw on the right #}
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h4 class="card-title">Deposit Cash</h4>
+                <hr>
+
+                {% if transaction_type == 'deposit' %}
+                {# Step 2: the deposit passed every check; the customer confirms or goes back #}
+                <p class="fw-bold">Confirm deposit of ${{ "{:,.2f}".format(amount) }}?</p>
+                <form method="POST" action="{{ url_for('confirm_cash_transaction') }}">
+                    <input type="hidden" name="transaction_type" value="deposit">
+                    <input type="hidden" name="amount" value="{{ amount }}">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Yes</button>
+                        {# No returns to the amount field, as in the Depositing cash map #}
+                        <a href="{{ url_for('cash_account') }}" class="btn btn-secondary">No</a>
+                    </div>
+                </form>
+
+                {% else %}
+                {# Step 1: enter the amount to deposit #}
+                <form method="POST">
+                    <input type="hidden" name="transaction_type" value="deposit">
+                    <div class="mb-3">
+                        <label for="deposit_amount" class="form-label">Deposit amount</label>
+                        <input type="number" class="form-control" id="deposit_amount" name="amount" min="0.01" step="0.01" required>
+                    </div>
+                    {# Review only checks the amount; the deposit happens at Yes, as on Buy #}
+                    <button type="submit" class="btn btn-primary w-100">Review deposit</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h4 class="card-title">Withdraw Cash</h4>
+                <hr>
+
+                {% if transaction_type == 'withdraw' %}
+                {# Step 2: the balance covers the withdrawal; the customer confirms or goes back #}
+                <p class="fw-bold">Confirm withdrawal of ${{ "{:,.2f}".format(amount) }}?</p>
+                <form method="POST" action="{{ url_for('confirm_cash_transaction') }}">
+                    <input type="hidden" name="transaction_type" value="withdraw">
+                    <input type="hidden" name="amount" value="{{ amount }}">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Yes</button>
+                        {# No returns to the amount field, as in the Withdrawing cash map #}
+                        <a href="{{ url_for('cash_account') }}" class="btn btn-secondary">No</a>
+                    </div>
+                </form>
+
+                {% else %}
+                {# Step 1: enter the amount to withdraw; no max here, so the server can show the insufficient-funds message #}
+                <form method="POST">
+                    <input type="hidden" name="transaction_type" value="withdraw">
+                    <div class="mb-3">
+                        <label for="withdraw_amount" class="form-label">Withdrawal amount</label>
+                        <input type="number" class="form-control" id="withdraw_amount" name="amount" min="0.01" step="0.01" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Review withdrawal</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

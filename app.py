@@ -179,7 +179,7 @@ def login():
             if user.admin_access:
                 return redirect(url_for('admin_dashboard'))
 
-            return redirect(url_for('portfolio'))
+            return redirect(url_for('customer_dashboard'))
 
         flash('Invalid username or password.', 'danger')
 
@@ -193,7 +193,7 @@ def home():
     if current_user.admin_access:
         return redirect(url_for('admin_dashboard'))
 
-    return redirect(url_for('portfolio'))
+    return redirect(url_for('customer_dashboard'))
 
 
 @app.route('/logout')
@@ -685,23 +685,15 @@ def calculate_portfolio_summary(portfolio):
     return holdings_value
 
 
-
-@app.route('/portfolio')
-@login_required
-def portfolio():
-    if current_user.admin_access:
-        flash('Customer access required.', 'danger')
-        return redirect(url_for('admin_dashboard'))
-
-    customer_portfolio = get_portfolio(current_user.user_id)
-    holdings_value = calculate_portfolio_summary(customer_portfolio)
-
+def calculate_profit_loss(user_id, portfolio):
+    # Unrealized profit on the shares still held, and realized profit from
+    # every sale; Portfolio shows it in full, the Dashboard as a summary
     unrealized = 0
     stock_profits = []
 
-    for row in customer_portfolio:
+    for row in portfolio:
         holding = Holding.query.filter_by(
-            user_id=current_user.user_id,
+            user_id=user_id,
             stock_id=row['stock_id']
         ).first()
 
@@ -718,7 +710,7 @@ def portfolio():
             })
 
     transactions = StockTransaction.query.filter_by(
-        user_id=current_user.user_id
+        user_id=user_id
     ).order_by(
         StockTransaction.transaction_date,
         StockTransaction.stock_transaction_id
@@ -747,12 +739,48 @@ def portfolio():
             position['qty'] -= quantity
             position['cost'] -= avg_cost * quantity
 
-    pnl = {
+    return {
         'realized': round(realized, 2),
         'unrealized': round(unrealized, 2),
         'total': round(realized + unrealized, 2),
         'stocks': stock_profits
     }
+
+
+@app.route('/dashboard')
+@login_required
+def customer_dashboard():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    customer_portfolio = get_portfolio(current_user.user_id)
+    holdings_value = calculate_portfolio_summary(customer_portfolio)
+    pnl = calculate_profit_loss(current_user.user_id, customer_portfolio)
+
+    # The five newest trades; the full list stays on the History page
+    recent_trades = get_transaction_history(current_user.user_id)[:5]
+
+    return render_template(
+        'dashboard.html',
+        cash_balance=current_user.cash_balance,
+        holdings_value=holdings_value,
+        pnl=pnl,
+        market_open=market_is_open(),
+        recent_trades=recent_trades
+    )
+
+
+@app.route('/portfolio')
+@login_required
+def portfolio():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    customer_portfolio = get_portfolio(current_user.user_id)
+    holdings_value = calculate_portfolio_summary(customer_portfolio)
+    pnl = calculate_profit_loss(current_user.user_id, customer_portfolio)
 
     return render_template(
         'portfolio.html',
@@ -761,6 +789,7 @@ def portfolio():
         holdings_value=holdings_value,
         pnl=pnl
     )
+
 
 def get_transaction_history(user_id):
     # Every stock trade the customer has made
@@ -1111,3 +1140,138 @@ def sell_stock(symbol):
         flash('Sale failed. Please try again.', 'danger')
 
     return redirect(url_for('portfolio'))
+
+
+def read_amount(amount_text):
+    # A dollar amount of at least one cent with no more than two decimal
+    # places (the same money rules as Create Stock); anything else is None
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+    if not amount.is_finite() or amount < Decimal('0.01'):
+        return None
+
+    if amount.as_tuple().exponent < -2:
+        return None
+
+    return amount
+
+
+def check_cash_request(transaction_type, amount):
+    if transaction_type not in ('deposit', 'withdraw'):
+        return 'Choose Deposit or Withdraw.'
+
+    if amount is None:
+        return 'Enter an amount of at least $0.01, with no more than 2 decimal places.'
+
+    # A withdrawal can never take out more than the cash account holds
+    if transaction_type == 'withdraw' and not validate_funds(current_user, amount):
+        return (
+            f'Insufficient funds. You asked to withdraw ${amount:,.2f} '
+            f'and your cash balance is ${current_user.cash_balance:,.2f}.'
+        )
+
+    # cash_balance is DECIMAL(15,2), so a balance above this cannot be saved
+    if transaction_type == 'deposit' and (
+        current_user.cash_balance + amount > Decimal('9999999999999.99')
+    ):
+        return 'That deposit is too large.'
+
+    return None
+
+
+def record_cash_transaction(user_id, transaction_type, amount):
+    # The timestamped record of a deposit or withdrawal; the amount is always
+    # positive and transaction_type says which way the money moved
+    transaction = CashTransaction(
+        user_id=user_id,
+        transaction_type=transaction_type,
+        amount=amount
+    )
+
+    db.session.add(transaction)
+
+
+def deposit_cash(user, amount):
+    update_cash_balance(user, amount)
+    record_cash_transaction(user.user_id, 'deposit', amount)
+
+
+def withdraw_cash(user, amount):
+    update_cash_balance(user, -amount)
+    record_cash_transaction(user.user_id, 'withdraw', amount)
+
+
+@app.route('/cash-account', methods=['GET', 'POST'])
+@login_required
+def cash_account():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    if request.method == 'POST':
+        transaction_type = request.form.get('transaction_type', '')
+        amount = read_amount(request.form.get('amount', '').strip())
+
+        problem = check_cash_request(transaction_type, amount)
+
+        if problem:
+            flash(problem, 'danger')
+            return redirect(url_for('cash_account'))
+
+        # The amount passed every check; the panel now asks the customer to confirm
+        return render_template(
+            'cash_account.html',
+            transaction_type=transaction_type,
+            amount=amount
+        )
+
+    return render_template(
+        'cash_account.html',
+        transaction_type=None,
+        amount=None
+    )
+
+
+@app.route('/cash-account/confirm', methods=['POST'])
+@login_required
+def confirm_cash_transaction():
+    if current_user.admin_access:
+        flash('Customer access required.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    transaction_type = request.form.get('transaction_type', '')
+    amount = read_amount(request.form.get('amount', '').strip())
+
+    # Checked again on Yes, because the balance can change after the review
+    problem = check_cash_request(transaction_type, amount)
+
+    if problem:
+        flash(problem, 'danger')
+        return redirect(url_for('cash_account'))
+
+    try:
+        if transaction_type == 'deposit':
+            deposit_cash(current_user, amount)
+        else:
+            withdraw_cash(current_user, amount)
+
+        # The balance change and its record are saved together, or not at all
+        db.session.commit()
+
+        if transaction_type == 'deposit':
+            flash(f'Deposit complete: ${amount:,.2f} added to your cash account.', 'success')
+        else:
+            flash(f'Withdrawal complete: ${amount:,.2f} taken from your cash account.', 'success')
+
+    except Exception:
+        db.session.rollback()
+        flash(
+            'The transaction could not be completed. '
+            'Your cash balance has not changed. Please try again.',
+            'danger'
+        )
+
+    return redirect(url_for('cash_account'))
