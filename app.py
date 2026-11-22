@@ -441,30 +441,24 @@ def edit_stock(stock_id):
     stock = db.get_or_404(Stock, stock_id)
 
     if request.method == 'POST':
+        # The Business Case lets the administrator set the price only at
+        # creation; after that the market moves it. Ticker, company name and
+        # shares stay as created too, so status is the only field read here
+        status = request.form.get('status', '')
+
+        if status not in ('active', 'inactive'):
+            flash('Please choose a valid stock status.', 'danger')
+            return render_template('edit_stock.html', stock=stock)
+
         try:
-            price = Decimal(request.form['current_price'])
-            quantity = int(request.form['available_quantity'])
-            status = request.form['status']
-
-            if not price.is_finite() or price <= 0 or quantity < 0:
-                raise ValueError('Invalid price or quantity')
-
-            if status not in ('active', 'inactive'):
-                raise ValueError('Invalid stock status')
-
-            stock.current_price = price
-            stock.available_quantity = quantity
             stock.status = status
-
             db.session.commit()
             flash('Stock updated successfully!', 'success')
             return redirect(url_for('admin_dashboard'))
-
-        except (ValueError, InvalidOperation, KeyError):
-            flash('Please enter valid stock information.', 'danger')
         except Exception:
             db.session.rollback()
             flash('Could not update stock.', 'danger')
+
     return render_template('edit_stock.html', stock=stock)
 
 # Read and validate the market schedule form
