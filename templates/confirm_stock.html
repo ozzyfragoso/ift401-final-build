@@ -23,7 +23,8 @@
     </tr>
     <tr>
         <th>Initial price</th>
-        <td>${{ current_price }}</td>
+        {# The typed price already passed check_new_stock(), so 12.5 shows as $12.50 #}
+        <td>${{ "{:,.2f}".format(current_price | float) }}</td>
     </tr>
 </table>
 

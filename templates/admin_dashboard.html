@@ -106,7 +106,7 @@
                 <tr>
                     <td>{{ stock.symbol }}</td>
                     <td>{{ stock.company_name }}</td>
-                    <td>${{ "%.2f"|format(stock.current_price) }}</td>
+                    <td>${{ "{:,.2f}".format(stock.current_price) }}</td>
                     <td>{{ stock.available_quantity }}</td>
                     <td>
                         {% if stock.status == 'active' %}

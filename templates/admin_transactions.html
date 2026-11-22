@@ -104,11 +104,11 @@
                     <td>{{ transaction.quantity }}</td>
 
                     <td>
-                        ${{ "%.2f"|format(transaction.price_per_share) }}
+                        ${{ "{:,.2f}".format(transaction.price_per_share) }}
                     </td>
 
                     <td>
-                        ${{ "%.2f"|format(transaction.total_amount) }}
+                        ${{ "{:,.2f}".format(transaction.total_amount) }}
                     </td>
                 </tr>
                 {% else %}
