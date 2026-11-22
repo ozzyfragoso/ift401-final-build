@@ -527,9 +527,16 @@ def market_schedule():
         flash('Administrator access required.', 'danger')
         return redirect(url_for('portfolio'))
 
+    today = datetime.now().date()
+
     if request.method == 'POST':
         try:
             values = read_schedule_form(request.form)
+
+            # The date picker blocks past dates, but the server checks too
+            if values['market_date'] < today:
+                raise ValueError('Market date cannot be in the past.')
+
             save_market_schedule(values)
             flash('Market schedule saved successfully!', 'success')
             return redirect(url_for('market_schedule'))
@@ -540,14 +547,15 @@ def market_schedule():
             flash('Could not save market schedule.', 'danger')
 
     schedules = MarketSchedule.query.filter(
-         MarketSchedule.market_date >= datetime.now().date()
+         MarketSchedule.market_date >= today
          ).order_by(
             MarketSchedule.market_date
             ).all()
 
     return render_template(
         'market_schedule.html',
-        schedules=schedules
+        schedules=schedules,
+        today=today.isoformat()
     )
 
 

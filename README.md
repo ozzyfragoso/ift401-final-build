@@ -2,7 +2,7 @@
 
 A web application where trainee stockbrokers practice buying and selling simulated stocks, with no real money at risk.
 
-Customers create an account, deposit simulated cash, buy and sell stocks at the current market price while the market is open, and review their portfolio and transaction history. Administrators create stocks and set the market schedule.
+Customers create an account, deposit simulated cash, buy and sell stocks at the current market price while the market is open, and review their portfolio and transaction history. Administrators create stocks, mark them active or inactive, and set the market schedule.
 
 ## Tech stack
 
@@ -11,49 +11,11 @@ Customers create an account, deposit simulated cash, buy and sell stocks at the 
 - **Flask-Login** and **Flask-Bcrypt** for login and password hashing
 - **HTML**, **Jinja2** templates, **Bootstrap** (CDN), and a little CSS and JavaScript
 
-The project follows the course Project Handbook. It runs locally first and is deployed to AWS (RDS and EC2) at the end.
+The project follows the course Project Handbook.
 
-## Features
+## Deployment
 
-| Feature | Status |
-|---|---|
-| Login and registration | Complete |
-| Admin dashboard, create stock and market schedule | Complete |
-| Buy stock | Complete |
-| Portfolio | Complete |
-| Sell stock | Complete |
-| Random stock price generator | In progress |
-| Transaction history | Complete |
-| Deposit and withdraw cash | Planned |
-| Profit/loss tracking (extra) | Planned |
-| Live stock price chart (extra) | Planned |
+The application is fully deployed on AWS:
 
-## Getting started
-
-
-1. Create a folder for the project and clone this repository into it, so the structure looks like this:
-
-   ```
-   your_root_folder/
-   ├── venv/
-   └── ift401-final-build/     (this repository)
-   ```
-
-2. In `your_root_folder`, create and activate a virtual environment:
-
-   ```
-   python -m venv venv
-   venv\Scripts\activate
-   ```
-
-3. Install the packages:
-
-   ```
-   pip install -r ift401-final-build\requirements.txt
-   ```
-
-4. In MySQL Workbench, create an empty schema named `stock_trading`.
-
-5. In the repository folder, copy `.env.example` to `.env` and fill in your own MySQL password and a long random secret key. The `.env` file holds private values and is never uploaded to GitHub.
-
-6. Start the app from the repository folder
+- **Amazon EC2** (Ubuntu) runs the Flask application on port 8000.
+- **Amazon RDS** hosts the MySQL database.

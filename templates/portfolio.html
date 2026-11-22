@@ -16,7 +16,7 @@
 <div class="row g-3 mt-2">
 {% for name,value in [('Portfolio Value',holdings_value),('Cash',cash_balance)] %}
 <div class="col-md-6"><div class="box">
-<small>{{ name }}</small><h3>${{ "%.2f"|format(value) }}</h3>
+<small>{{ name }}</small><h3>${{ "{:,.2f}".format(value) }}</h3>
 </div></div>
 {% endfor %}
 </div></div>
@@ -26,7 +26,8 @@
 <div class="col-md-4"><div class="card panel p-3">
 <small>{{ name }}</small>
 <h3 class="{{ 'text-success' if value is not none and value>=0 else 'text-danger' if value is not none else 'text-muted' }}">
-{{ "$%.2f"|format(value) if value is not none else "—" }}</h3>
+{# Minus sign before the dollar sign, as on the Dashboard #}
+{% if value is none %}—{% else %}{{ '-' if value < 0 }}${{ "{:,.2f}".format(value | abs) }}{% endif %}</h3>
 </div></div>
 {% endfor %}
 </div>
@@ -49,7 +50,7 @@
 <tr><th>Stock</th><th>Company</th><th>Qty</th><th>Price</th><th></th></tr>
 {% for s in portfolio %}
 <tr><td>{{ s.symbol }}</td><td>{{ s.company_name }}</td>
-<td>{{ s.quantity }}</td><td>${{ "%.2f"|format(s.current_price) }}</td>
+<td>{{ s.quantity }}</td><td>${{ "{:,.2f}".format(s.current_price) }}</td>
 <td><a class="btn btn-danger btn-sm" href="{{ url_for('sell_panel',symbol=s.symbol) }}">SELL</a></td></tr>
 {% endfor %}
 </table></div>
