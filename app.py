@@ -867,8 +867,43 @@ def get_transaction_history(user_id):
             'quantity': transaction.quantity,
             'price_per_share': transaction.price_per_share,
             'total_amount': transaction.total_amount,
-            'date_time': f"{moment:%Y-%m-%d} {hour}:{moment:%M %p}"
+            'date_time': f"{moment:%Y-%m-%d} {hour}:{moment:%M %p}",
+            'moment': moment
         })
+
+    return history
+
+
+def get_history_with_cash(user_id):
+    # The History page lists trades and cash movements together; the
+    # Dashboard's Recent Trades keeps using get_transaction_history alone
+    history = get_transaction_history(user_id)
+
+    # Every deposit and withdrawal, newest first within the same second
+    cash_transactions = CashTransaction.query.filter_by(user_id=user_id).all()
+    cash_transactions = sorted(
+        cash_transactions,
+        key=lambda t: (t.transaction_date, t.cash_transaction_id),
+        reverse=True
+    )
+
+    for transaction in cash_transactions:
+        moment = transaction.transaction_date
+        hour = moment.hour % 12 or 12
+
+        # No stock, quantity or price; the template shows a dash for these
+        history.append({
+            'type': transaction.transaction_type.capitalize(),
+            'symbol': None,
+            'quantity': None,
+            'price_per_share': None,
+            'total_amount': transaction.amount,
+            'date_time': f"{moment:%Y-%m-%d} {hour}:{moment:%M %p}",
+            'moment': moment
+        })
+
+    # Newest first across both lists; rows with the same time keep their order
+    history = sorted(history, key=lambda row: row['moment'], reverse=True)
 
     return history
 
@@ -880,7 +915,7 @@ def transaction_history():
         flash('Customer access required.', 'danger')
         return redirect(url_for('admin_dashboard'))
 
-    history = get_transaction_history(current_user.user_id)
+    history = get_history_with_cash(current_user.user_id)
 
     return render_template('history.html', history=history)
 
